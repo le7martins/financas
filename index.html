@@ -570,7 +570,9 @@ function toast(type,title,msg){
   const ic={success:'✅',warn:'⚠️',danger:'🚨',info:'ℹ️'};
   const id='t'+Date.now();const el=document.createElement('div');
   el.className='toast '+type;el.id=id;
-  el.innerHTML='<div class="toast-icon">'+ic[type]+'</div><div class="toast-body"><div class="toast-title">'+title+'</div>'+(msg?'<div class="toast-msg">'+msg+'</div>':'')+'</div><button class="toast-close" onclick="rmToast(''+id+'')">✕</button>';
+  const btn=document.createElement('button');btn.className='toast-close';btn.textContent='✕';btn.onclick=()=>rmToast(id);
+  el.innerHTML='<div class="toast-icon">'+ic[type]+'</div><div class="toast-body"><div class="toast-title">'+title+'</div>'+(msg?'<div class="toast-msg">'+msg+'</div>':'')+'</div>';
+  el.appendChild(btn);
   document.getElementById('toastWrap').appendChild(el);setTimeout(()=>rmToast(id),5000);
 }
 function rmToast(id){const el=document.getElementById(id);if(!el)return;el.classList.add('removing');setTimeout(()=>el.remove(),250);}
@@ -831,8 +833,8 @@ function renderCatBkd(id,list,total){
 }
 function renderAccWidget(){
   const el=document.getElementById('accWidget');if(!el)return;
-  if(!accounts.length){el.innerHTML='<div style="font-size:12px;color:var(--text-muted);padding:8px 0">Nenhuma conta. <span style="color:var(--green);cursor:pointer" onclick="switchPage('accounts')">Criar</span></div>';return;}
-  el.innerHTML=accounts.map(a=>'<div class="account-card" onclick="switchPage('accounts')"><div class="account-card-icon">'+a.icon+'</div><div class="account-card-name">'+a.name+'</div><div class="account-card-bal '+(a.balance>=0?'pos':'neg')+'">'+fmtBRL(a.balance)+'</div><div class="account-card-type">'+a.type+'</div></div>').join('')+'<div class="add-acc-card" onclick="openAddAccount()"><span>+</span><p>Nova</p></div>';
+  if(!accounts.length){el.innerHTML='<div style="font-size:12px;color:var(--text-muted);padding:8px 0">Nenhuma conta. <span style="color:var(--green);cursor:pointer" onclick="switchPage(\'accounts\')">Criar</span></div>';return;}
+  el.innerHTML=accounts.map(a=>'<div class="account-card" onclick="switchPage(\'accounts\')"><div class="account-card-icon">'+a.icon+'</div><div class="account-card-name">'+a.name+'</div><div class="account-card-bal '+(a.balance>=0?'pos':'neg')+'">'+fmtBRL(a.balance)+'</div><div class="account-card-type">'+a.type+'</div></div>').join('')+'<div class="add-acc-card" onclick="openAddAccount()"><span>+</span><p>Nova</p></div>';
 }
 function renderAccGrid(){
   const el=document.getElementById('accGrid');if(!el)return;
@@ -915,12 +917,12 @@ function importBackup(event){
       const data=JSON.parse(e.target.result);
       if(!data.transactions||!Array.isArray(data.transactions))throw new Error();
       const enc=btoa(unescape(encodeURIComponent(e.target.result)));
-      showModal('Importar Backup','Substitui dados atuais pelos do arquivo ('+data.transactions.length+' transacoes). Confirmar?','<button class="btn-main" onclick="doImport(''+enc+'')">Confirmar Importacao</button>');
+      showModal('Importar Backup','Substitui dados atuais pelos do arquivo ('+data.transactions.length+' transacoes). Confirmar?','<button class="btn-main" onclick="doImport(this.dataset.enc)" data-enc="'+enc+'">Confirmar Importacao</button>');
     }catch{toast('danger','Arquivo invalido','');}
   };
   reader.readAsText(file);event.target.value='';
 }
-function doImport(enc){
+function doImport(el){const enc=el?el.dataset.enc:'';
   try{
     const data=JSON.parse(decodeURIComponent(escape(atob(enc))));
     txs=data.transactions||[];recs=data.recurringItems||[];accounts=data.accounts||[];creditCards=data.creditCards||[];
