@@ -583,7 +583,10 @@ window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dPr=e;docum
 function installPWA(){if(!dPr)return;dPr.prompt();dPr.userChoice.then(()=>{dPr=null;document.getElementById('installBtn').classList.remove('show');});}
 // SETUP
 let setupAv='😊';
-document.querySelectorAll('#avatarPicker .av-opt').forEach(o=>{o.onclick=()=>{document.querySelectorAll('#avatarPicker .av-opt').forEach(x=>x.classList.remove('selected'));o.classList.add('selected');setupAv=o.dataset.av;};});
+function initAvatarPicker(){
+  document.querySelectorAll('#avatarPicker .av-opt').forEach(o=>{o.onclick=()=>{document.querySelectorAll('#avatarPicker .av-opt').forEach(x=>x.classList.remove('selected'));o.classList.add('selected');setupAv=o.dataset.av;};});
+  document.querySelectorAll('#editAvatarPicker .av-opt').forEach(o=>{o.onclick=()=>{document.querySelectorAll('#editAvatarPicker .av-opt').forEach(x=>x.classList.remove('selected'));o.classList.add('selected');};});
+}
 function finishSetup(){
   const name=document.getElementById('setupName').value.trim()||'Usuario';
   profile={name,avatar:setupAv,since:todayStr()};saveAll();launchApp();
@@ -594,7 +597,6 @@ function launchApp(){
   updateMonthLabel();updateProfileUI();render();checkNotifPerm();
 }
 // PROFILE
-document.querySelectorAll('#editAvatarPicker .av-opt').forEach(o=>{o.onclick=()=>{document.querySelectorAll('#editAvatarPicker .av-opt').forEach(x=>x.classList.remove('selected'));o.classList.add('selected');};});
 function saveProfile(){
   const name=document.getElementById('editName').value.trim()||profile.name;
   const av=document.querySelector('#editAvatarPicker .av-opt.selected')?.dataset.av||profile.avatar;
@@ -944,13 +946,14 @@ function switchPage(page){
 }
 // INIT
 function init(){
+  initAvatarPicker();
   document.getElementById('txDate').value=todayStr();
   document.getElementById('txDueDate').value=todayStr();
   updateCats();setType('inc');
   if(profile){launchApp();}
 }
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
-init();
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}
 </script>
 </body>
 </html>
