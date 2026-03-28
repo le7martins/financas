@@ -253,6 +253,12 @@ select.field{cursor:pointer;font-size:13px}
 .tx-del{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:13px;padding:5px;opacity:0;transition:opacity .15s;border-radius:4px;margin-left:4px}
 .tx-item:hover .tx-del{opacity:1}
 @media(max-width:768px){.tx-del{opacity:.4}}
+.tx-edit{background:var(--blue-dim);border:1px solid var(--blue);cursor:pointer;color:var(--blue-bright);font-size:11px;padding:4px 8px;opacity:0;transition:opacity .15s;border-radius:5px;margin-left:4px;white-space:nowrap;font-weight:600}
+.tx-item:hover .tx-edit{opacity:1}
+@media(max-width:768px){.tx-edit{opacity:.5}}
+.edit-scope-row{display:flex;gap:6px;margin-bottom:12px}
+.scope-btn{flex:1;padding:9px 6px;border-radius:var(--radius-xs);border:1px solid var(--border2);font-size:12px;font-weight:600;cursor:pointer;background:var(--card2);color:var(--text-muted);transition:all .15s;text-align:center}
+.scope-btn.sel{border-color:var(--blue);background:var(--blue-dim);color:var(--blue-bright)}
 .badge{display:inline-block;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px;vertical-align:middle}
 .badge-blue{background:var(--blue-dim);color:var(--blue-bright)}
 .badge-orange{background:var(--orange-dim);color:var(--orange)}
@@ -604,7 +610,7 @@ input:checked+.slider:before{transform:translateX(16px)}
       <div id="nextRecTitle" style="display:none" class="sec-title">⏰ Próximos Vencimentos</div>
       <div id="nextRecList"></div>
       <!-- LAST TXS -->
-      <div class="sec-title">Últimas Transações <small id="dashTxCount">0</small></div>
+      <div class="sec-title"><span id="dashTxTitle">Últimas Transações</span> <small id="dashTxCount">0</small></div>
       <div class="tx-list" id="dashTxList"></div>
       <!-- CAT -->
       <div class="sec-title" style="margin-top:16px">Despesas por Categoria</div>
@@ -1320,8 +1326,8 @@ function txItemHTML(t){
   const payInfo=t.payMethod&&t.type!=='inc'?'<div class="tx-pay-badge">'+(PAY_ICO[t.payMethod]||'')+' '+(PAY_LBL[t.payMethod]||'')+'</div>':'';
   const recvBtn=isPending&&!isProj?'<button style="background:var(--green);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;margin-left:4px" onclick="markReceived(\''+t.id+'\')" >Receber</button>':'';
   const isInc=t.type==='inc';const projBtn=isProj?(isInc?'<button style="background:var(--green);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="confirmProj(\''+(t._recId||'')+'\',\''+(t.date||'')+'\',\'inc\')" >Receber ✓</button>':'<button style="background:var(--orange);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="confirmProj(\''+(t._recId||'')+'\',\''+(t.date||'')+'\',\'exp\')" >Pagar ✓</button>'):'';
-  const delBtn=isProj?'':`<button class="tx-del" onclick="delTx('${t.id}')" aria-label="Excluir">✕</button>`;
-  return '<div class="tx-item" style="'+itemStyle+'"><div class="tx-icon" style="'+bg+'">'+ico+'</div><div class="tx-body"><div class="tx-desc">'+(t.desc||t.cat)+projBadge+pendBadge+recBadge+'</div><div class="tx-meta">'+t.cat+' · '+ds+'</div></div><div class="tx-right"><div class="tx-amount '+(t.type==='inc'?'inc':'exp')+'">'+sign+R(t.amount)+'</div>'+payInfo+recvBtn+projBtn+'</div>'+delBtn+'</div>';
+  const editBtn=isProj?projBtn:`<button class="tx-edit" onclick="editTx('${t.id}')" aria-label="Editar">✏️ Editar</button>`;
+  return '<div class="tx-item" style="'+itemStyle+'"><div class="tx-icon" style="'+bg+'">'+ico+'</div><div class="tx-body"><div class="tx-desc">'+(t.desc||t.cat)+projBadge+pendBadge+recBadge+'</div><div class="tx-meta">'+t.cat+' · '+ds+'</div></div><div class="tx-right"><div class="tx-amount '+(t.type==='inc'?'inc':'exp')+'">'+sign+R(t.amount)+'</div>'+payInfo+recvBtn+'</div>'+editBtn+'</div>';
 }
 
 
@@ -1439,6 +1445,98 @@ function openSubPage(sub){
 function closeSubPage(){
   document.getElementById('gfMain').style.display='block';
   document.querySelectorAll('.sub-page').forEach(p=>p.classList.remove('active'));
+}
+
+// ══ EDIT TRANSACTION ══
+let _editTxId=null, _editScope='single';
+
+function selEditPay(btn){document.querySelectorAll('#editPayGrid .pay-btn').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');}
+function editTx(id){
+  const t=txs.find(x=>x.id===id);
+  if(!t){toast('w','Transacao nao encontrada','');return;}
+  _editTxId=id;
+  _editScope='single';
+  const isInc=t.type==='inc';
+  const hasRec=!!t.recId;
+  const catOpts=(CATS[t.type]||CATS.exp);
+  const catSelHtml=catOpts.map(c=>'<option'+(c===t.cat?' selected':'')+'>'+c+'</option>').join('');
+  // Payment method buttons (expense only)
+  const PAYS=['pix','debito','dinheiro','cheque','boleto'];
+  const payBtnsHtml=PAYS.map(function(p){const sel=t.payMethod===p?' sel':'';return '<button class="pay-btn'+sel+'" data-pay="'+p+'" onclick="selEditPay(this)"><span class=\"pay-icon\">'+( PAY_ICO[p]||'')+' </span>'+PAY_LBL[p]+'</button>';}).join('');
+  const paySection=!isInc?'<div class=\"field-label\" style=\"margin-top:9px\">Forma de Pagamento</div><div id=\"editPayGrid\" style=\"display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px\">'+payBtnsHtml+'</div>':'<div id=\"editPayGrid\"></div>';
+  // Scope for recurring
+  const scopeSection=hasRec?'<div style=\"margin-bottom:10px\"><div class=\"field-label\" style=\"margin-bottom:7px\">🔁 Alterar recorrência:</div><div class=\"edit-scope-row\"><button class=\"scope-btn sel\" onclick=\"setEditScope(\'single\',this)\">Apenas este mês</button><button class=\"scope-btn\" onclick=\"setEditScope(\'all\',this)\">Este e todos os futuros</button></div></div>':'';
+  const body='<div class=\"field-wrap\" style=\"margin-bottom:9px\"><div class=\"field-label\">Descrição</div><input class=\"field\" id=\"etDesc\" style=\"margin-bottom:0\" value=\"'+((t.desc||t.cat).replace(/"/g,'&quot;'))+'\"></div>'
+    +'<div class=\"field-row\" style=\"margin-bottom:9px\"><div class=\"field-wrap\"><div class=\"field-label\">Valor (R$)</div><input class=\"field\" id=\"etAmount\" type=\"number\" inputmode=\"decimal\" value=\"'+t.amount+'\" style=\"margin-bottom:0\"></div><div class=\"field-wrap\"><div class=\"field-label\">Data</div><input class=\"field\" id=\"etDate\" type=\"date\" value=\"'+t.date+'\" style=\"margin-bottom:0\"></div></div>'
+    +'<div class=\"field-wrap\" style=\"margin-bottom:9px\"><div class=\"field-label\">Categoria</div><select class=\"field\" id=\"etCat\" style=\"margin-bottom:0\">'+catSelHtml+'</select></div>'
+    +paySection
+    +scopeSection
+    +'<div style=\"display:flex;gap:8px;margin-top:4px\"><button class=\"btn-main\" style=\"flex:2\" onclick=\"saveTxEdit()\">💾 Salvar</button><button class=\"bk-btn red\" style=\"flex:1;padding:11px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer\" onclick=\"deleteTxFromEdit()\">🗑️ Excluir</button></div>';
+  showModal(isInc?'✏️ Editar Receita':'✏️ Editar Despesa','',body);
+}
+
+function setEditScope(scope,btn){
+  _editScope=scope;
+  document.querySelectorAll('.scope-btn').forEach(b=>b.classList.remove('sel'));
+  if(btn)btn.classList.add('sel');
+}
+
+async function saveTxEdit(){
+  const t=txs.find(x=>x.id===_editTxId);
+  if(!t){closeModal();return;}
+  const desc=document.getElementById('etDesc').value.trim()||t.desc;
+  const amount=parseFloat(document.getElementById('etAmount').value)||t.amount;
+  const date=document.getElementById('etDate').value||t.date;
+  const cat=document.getElementById('etCat').value||t.cat;
+  const payBtn=document.querySelector('#editPayGrid .pay-btn.sel');
+  const payMethod=payBtn?payBtn.dataset.pay:t.payMethod;
+  const amtChanged=amount!==t.amount;
+
+  // Update balance if amount changed
+  if(amtChanged&&t.accId){
+    const a=accounts.find(x=>x.id===t.accId);
+    if(a){
+      if(t.type==='inc'){a.balance-=t.amount;a.balance+=amount;}
+      else{a.balance+=t.amount;a.balance-=amount;}
+    }
+  }
+
+  // Apply changes to this tx
+  t.desc=desc; t.amount=amount; t.date=date; t.cat=cat;
+  if(payMethod)t.payMethod=payMethod;
+  const[y,m]=date.split('-').map(Number);
+  t.month=mk(y,m-1);
+
+  // If recurring and scope='all', also update the rec
+  if(t.recId&&_editScope==='all'){
+    const r=recs.find(x=>x.id===t.recId);
+    if(r){r.desc=desc;r.amount=amount;r.cat=cat;}
+  }
+
+  await saveAll();render();closeModal();
+  toast('s','Salvo!',desc+(t.recId&&_editScope==='all'?' — todos os futuros atualizados':''));
+}
+
+async function deleteTxFromEdit(){
+  if(!_editTxId)return;
+  closeModal();
+  // Show confirm
+  showModal('Excluir transação','Esta ação não pode ser desfeita.',
+    '<div style="display:flex;gap:8px">'+
+    '<button class="bk-btn red" style="flex:1;padding:11px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer" onclick="confirmDelTx()">Excluir</button>'+
+    '<button class="btn-main" style="flex:1" onclick="closeModal()">Cancelar</button>'+
+    '</div>'
+  );
+}
+async function confirmDelTx(){
+  closeModal();
+  const tx=txs.find(t=>t.id===_editTxId);
+  if(tx){
+    if(tx.accId){const a=accounts.find(x=>x.id===tx.accId);if(a)a.balance+=tx.type==='inc'?-tx.amount:tx.amount;}
+  }
+  txs=txs.filter(t=>t.id!==_editTxId);
+  _editTxId=null;
+  await saveAll();render();toast('i','Excluído','');
 }
 
 // ══ PROJECTED INCOME (from recurring recs with type=inc) ══
@@ -1588,6 +1686,10 @@ function renderDashboard(){
   const allItems=[...month,...proj].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,8);
   dashTxEl.innerHTML=allItems.length?allItems.map(t=>txItemHTML(t)).join(''):'<div class="empty"><div class="empty-ico">📭</div><p>Nenhuma transacao este mes</p><small>Vá em Lancamentos para adicionar</small></div>';
   document.getElementById('dashTxCount').textContent=(month.length+proj.length)+' registros';
+  // Dynamic title: current month = "Últimas Transações", future = "Agendado para Mês"
+  const todayMonthKey=new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0');
+  const titleEl=document.getElementById('dashTxTitle');
+  if(titleEl) titleEl.textContent=curKey()>todayMonthKey?'Agendado para '+MONTHS[curM]:'Últimas Transações';
   // cat breakdown
   renderCatBreakdown('dashCatList',[...month,...proj],exp);
 }
