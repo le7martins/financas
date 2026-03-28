@@ -1424,11 +1424,17 @@ function txItemHTML(t){
   const payMeta=t.payMethod&&!isInc?' · '+(PAY_ICO[t.payMethod]||'')+' '+(PAY_LBL[t.payMethod]||''):'';
   const recBadge=t.recId&&!isProj?'<span class="badge badge-blue">🔁</span>':'';
   const projBadge=isProj?'<span class="badge badge-proj">📅 Previsto</span>':'';
-  const pendBadge=isAPagar
-    ?'<button class="badge-action" data-action="pay" data-id="'+t.id+'" style="display:inline-flex;align-items:center;gap:3px;background:var(--orange-dim);color:var(--orange);border:1px solid var(--orange);border-radius:4px;font-size:9px;font-weight:700;padding:2px 6px;cursor:pointer;margin-left:4px;vertical-align:middle">⏳ A Pagar</button>'
-    :isPending
-    ?'<button class="badge-action" data-action="receive" data-id="'+t.id+'" style="display:inline-flex;align-items:center;gap:3px;background:var(--green-dim);color:var(--green);border:1px solid var(--green);border-radius:4px;font-size:9px;font-weight:700;padding:2px 6px;cursor:pointer;margin-left:4px;vertical-align:middle">⏳ Pendente</button>'
-    :isPago?'<span class="badge" style="background:var(--green-dim);color:var(--green)">✓ Pago</span>':'';
+  // Use numeric index to avoid any quote escaping issues in onclick
+  let pendBadge='';
+  if(isAPagar){
+    const idx=window._ba.push({a:'pay',id:t.id})-1;
+    pendBadge='<button onclick="window.doBadge('+idx+')" style="display:inline-flex;align-items:center;gap:3px;background:var(--orange-dim);color:var(--orange);border:1px solid var(--orange);border-radius:4px;font-size:9px;font-weight:700;padding:2px 6px;cursor:pointer;margin-left:4px;vertical-align:middle">⏳ A Pagar</button>';
+  } else if(isPending){
+    const idx=window._ba.push({a:'receive',id:t.id})-1;
+    pendBadge='<button onclick="window.doBadge('+idx+')" style="display:inline-flex;align-items:center;gap:3px;background:var(--green-dim);color:var(--green);border:1px solid var(--green);border-radius:4px;font-size:9px;font-weight:700;padding:2px 6px;cursor:pointer;margin-left:4px;vertical-align:middle">⏳ Pendente</button>';
+  } else if(isPago){
+    pendBadge='<span class="badge" style="background:var(--green-dim);color:var(--green)">✓ Pago</span>';
+  }
   let rightBtn='';
   if(isProj){
     if(isInc) rightBtn='<button style="background:var(--green);color:#000;border:none;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer" onclick="confirmProj(\''+( t._recId||t.id)+'\',\''+( t.date||'')+'\',\'inc\')">Receber ✓</button>';
@@ -1869,7 +1875,15 @@ function markReceived(txId){
 
 
 // ══ RENDER ══
+window._ba=[];  // reset badge action registry on each render
+window.doBadge=function(idx){
+  const entry=window._ba[idx];
+  if(!entry)return;
+  if(entry.a==='pay') confirmMarkPaid(entry.id);
+  else confirmMarkReceived(entry.id);
+};
 function render(){
+  window._ba=[];
   renderDashboard();
   renderTxList();
   renderGastos();
