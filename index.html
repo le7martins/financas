@@ -1767,11 +1767,11 @@ function renderDashboard(){
   const exp=expReal+projE;
   const bal=inc-exp;
 
-  document.getElementById('dInc').textContent=R(inc);
+  document.getElementById('dInc').textContent='+'+R(inc);
   document.getElementById('dIncSub').textContent=month.filter(t=>t.type==='inc').length+' confirmados'+(proj.filter(t=>t.type==='inc').length?' + '+proj.filter(t=>t.type==='inc').length+' previstos':'');
-  document.getElementById('dExp').textContent=R(exp);
+  document.getElementById('dExp').textContent='-'+R(exp);
   document.getElementById('dExpSub').textContent=month.filter(t=>t.type==='exp').length+' confirmados'+(proj.filter(t=>t.type==='exp').length?' + '+proj.filter(t=>t.type==='exp').length+' previstos':'');
-  const balEl=document.getElementById('dBal');balEl.textContent=R(bal);balEl.className='dc-value '+(bal>=0?'blue':'red');
+  const balEl=document.getElementById('dBal');balEl.textContent=(bal<0?'-':'')+R(bal);balEl.className='dc-value '+(bal>=0?'blue':'red');
   // next vencimentos
   const t=todayStr();
   const upcoming=[
