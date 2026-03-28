@@ -1325,7 +1325,8 @@ function txItemHTML(t){
   const recBadge=t.recId&&!isProj?'<span class="badge badge-blue">🔁</span>':'';
   const payInfo=t.payMethod&&t.type!=='inc'?'<div class="tx-pay-badge">'+(PAY_ICO[t.payMethod]||'')+' '+(PAY_LBL[t.payMethod]||'')+'</div>':'';
   const recvBtn=isPending&&!isProj?'<button style="background:var(--green);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;margin-left:4px" onclick="markReceived(\''+t.id+'\')" >Receber</button>':'';
-  const isInc=t.type==='inc';const projBtn=isProj?(isInc?'<button style="background:var(--green);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="confirmProj(\''+(t._recId||'')+'\',\''+(t.date||'')+'\',\'inc\')" >Receber ✓</button>':'<button style="background:var(--orange);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="confirmProj(\''+(t._recId||'')+'\',\''+(t.date||'')+'\',\'exp\')" >Pagar ✓</button>'):'';
+  const projId=isProj?(t._recId?t._recId:t.id):'';
+  const isInc=t.type==='inc';const projBtn=isProj?(isInc?'<button style="background:var(--green);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="confirmProj(\''+projId+'\',\''+( t.date||'')+'\',\'inc\')" >Receber ✓</button>':'<button style="background:var(--orange);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="confirmProj(\''+projId+'\',\''+( t.date||'')+'\',\'exp\')" >Pagar ✓</button>'):''
   const editProjBtn=isProj?'<button class="tx-edit" style="margin-left:4px" onclick="editProj(\''+( t._recId||'')+'\',\''+( t.date||'')+'\')" aria-label="Editar">✏️</button>':'';
   const editBtn=isProj?(projBtn+editProjBtn):`<button class="tx-edit" onclick="editTx('${t.id}')" aria-label="Editar">✏️ Editar</button>`;
   return '<div class="tx-item" style="'+itemStyle+'"><div class="tx-icon" style="'+bg+'">'+ico+'</div><div class="tx-body"><div class="tx-desc">'+(t.desc||t.cat)+projBadge+pendBadge+recBadge+'</div><div class="tx-meta">'+t.cat+' · '+ds+'</div></div><div class="tx-right"><div class="tx-amount '+(t.type==='inc'?'inc':'exp')+'">'+sign+R(t.amount)+'</div>'+payInfo+recvBtn+'</div>'+editBtn+'</div>';
@@ -1335,14 +1336,15 @@ function txItemHTML(t){
 // ══ SUBSCRIPTIONS ══
 function openAddSub(){
   showModal('Nova Assinatura','',
-    '<input class="field" id="mSN" placeholder="Nome (Ex: Netflix)">'+
-    '<div style="display:flex;gap:8px;margin-bottom:0">'+
-    '<div class="field-wrap"><div class="field-label">Valor mensal</div><input class="field" id="mSV" type="number" inputmode="decimal" placeholder="0,00" style="margin-bottom:0"></div>'+
-    '<div class="field-wrap"><div class="field-label">Dia cobranca</div><input class="field" id="mSD" type="number" inputmode="numeric" placeholder="15" min="1" max="31" style="margin-bottom:0"></div>'+
-    '</div><br>'+
+    '<input class="field" id="mSN" placeholder="Nome (Ex: Netflix, Spotify)">'+
+    '<div style="display:flex;gap:8px;margin-bottom:9px">'+
+    '<div class="field-wrap"><div class="field-label">Valor mensal</div><div class="amount-field-wrap"><span class="amount-prefix">R$</span><input class="field amount-field" id="mSV" type="text" inputmode="decimal" placeholder="0,00" style="margin-bottom:0"></div></div>'+
+    '<div class="field-wrap"><div class="field-label">Dia cobrança</div><input class="field" id="mSD" type="number" inputmode="numeric" placeholder="15" min="1" max="31" style="margin-bottom:0"></div>'+
+    '</div>'+
     '<div class="field-wrap" style="margin-bottom:12px"><div class="field-label">Categoria</div><select class="field" id="mSC" style="margin-bottom:0"><option>Assinaturas</option><option>Entretenimento</option><option>Servicos</option><option>Educacao</option><option>Saude</option><option>Outros</option></select></div>'+
     '<button class="btn-main" onclick="addSub()">Criar Assinatura</button>'
   );
+  setTimeout(()=>initCurrencyField('mSV'),50);
 }
 async function addSub(){
   const name=document.getElementById('mSN').value.trim();
@@ -1358,18 +1360,18 @@ async function delSub(id){subs=subs.filter(s=>s.id!==id);await saveAll();renderG
 // ══ RECORRENTES ══
 function openAddRec(){
   showModal('Novo Pagamento Recorrente','',
-    '<input class="field" id="mRN" placeholder="Descricao">'+
-    '<div class="amount-field-wrap" style="margin-bottom:9px"><span class="amount-prefix">R$</span><input class="field amount-field" id="mRV" type="text" inputmode="numeric" placeholder="0,00" style="margin-bottom:0"></div>'+
+    '<input class="field" id="mRN" placeholder="Descricao (Ex: Aluguel, Academia)">'+
+    '<div class="amount-field-wrap" style="margin-bottom:9px"><span class="amount-prefix">R$</span><input class="field amount-field" id="mRV" type="text" inputmode="decimal" placeholder="0,00" style="margin-bottom:0"></div>'+
     '<div class="field-wrap" style="margin-bottom:9px"><div class="field-label">Categoria</div><select class="field" id="mRC" style="margin-bottom:0">'+CATS.exp.map(c=>'<option>'+c+'</option>').join('')+'</select></div>'+
-    '<div class="field-wrap" style="margin-bottom:9px"><div class="field-label">Tipo</div><div style="display:flex;gap:6px"><button class="pay-btn sel" data-t="exp" onclick="this.parentNode.querySelectorAll(\'.pay-btn\').forEach(b=>b.classList.remove(\'sel\'));this.classList.add(\'sel\');"><span>↘</span>Despesa</button><button class="pay-btn" data-t="inc" onclick="this.parentNode.querySelectorAll(\'.pay-btn\').forEach(b=>b.classList.remove(\'sel\'));this.classList.add(\'sel\');"><span>↗</span>Receita</button></div></div>'+
-    '<div class="field-wrap" style="margin-bottom:9px"><div class="field-label">Frequencia</div>'+
-    '<div class="freq-grid"><button class="freq-btn active" data-freq="monthly" onclick="selFreqBtn(this)">Mensal</button><button class="freq-btn" data-freq="weekly" onclick="selFreqBtn(this)">Semanal</button><button class="freq-btn" data-freq="biweekly" onclick="selFreqBtn(this)">Quinzenal</button><button class="freq-btn" data-freq="quarterly" onclick="selFreqBtn(this)">Trimestral</button><button class="freq-btn" data-freq="yearly" onclick="selFreqBtn(this)">Anual</button><button class="freq-btn" data-freq="once" onclick="selFreqBtn(this)">Unica</button></div>'+
+    '<div class="field-wrap" style="margin-bottom:9px"><div class="field-label">Frequência</div>'+
+    '<div class="freq-grid"><button class="freq-btn active" data-freq="monthly" onclick="selFreqBtn(this)">Mensal</button><button class="freq-btn" data-freq="weekly" onclick="selFreqBtn(this)">Semanal</button><button class="freq-btn" data-freq="biweekly" onclick="selFreqBtn(this)">Quinzenal</button><button class="freq-btn" data-freq="quarterly" onclick="selFreqBtn(this)">Trimestral</button><button class="freq-btn" data-freq="yearly" onclick="selFreqBtn(this)">Anual</button><button class="freq-btn" data-freq="once" onclick="selFreqBtn(this)">Única vez</button></div>'+
     '</div>'+
-    '<div class="field-wrap" style="margin-bottom:9px"><div class="field-label">Data vencimento / primeiro lancamento</div><input class="field" id="mRD" type="date" style="margin-bottom:0"></div>'+
-    '<div class="field-wrap" style="margin-bottom:12px"><div class="field-label">Numero de parcelas (0 = indefinido)</div><input class="field" id="mRI" type="number" inputmode="numeric" placeholder="0" min="0" style="margin-bottom:0" value="0"></div>'+
+    '<div class="field-wrap" style="margin-bottom:9px"><div class="field-label">Data do primeiro vencimento</div><input class="field" id="mRD" type="date" style="margin-bottom:0"></div>'+
+    '<div class="field-wrap" style="margin-bottom:12px"><div class="field-label">Número de parcelas (0 = sem limite)</div><input class="field" id="mRI" type="number" inputmode="numeric" placeholder="0" min="0" style="margin-bottom:0" value="0"></div>'+
     '<button class="btn-main" onclick="addRec()">Criar Recorrente</button>'
   );
   document.getElementById('mRD').value=todayStr();
+  setTimeout(()=>initCurrencyField('mRV'),50);
 }
 function selFreqBtn(btn){document.querySelectorAll('#modalBody .freq-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
 async function addRec(){
@@ -1377,7 +1379,7 @@ async function addRec(){
   const amount=parseBRL(document.getElementById('mRV').value)||0;
   const cat=document.getElementById('mRC').value;
   const freq=(document.querySelector('#modalBody .freq-btn.active')||{dataset:{freq:'monthly'}}).dataset.freq;
-  const type=(document.querySelector('#modalBody [data-t].sel')||{dataset:{t:'exp'}}).dataset.t;
+  const type='exp'; // In Gastos Fixos, always expense
   const dueDate=document.getElementById('mRD').value;
   const totalInstallments=parseInt(document.getElementById('mRI').value)||0;
   if(!desc||!amount||!dueDate){toast('w','Preencha todos os campos','');return;}
@@ -1388,18 +1390,28 @@ async function delRec(id){recs=recs.filter(r=>r.id!==id);await saveAll();renderG
 
 // ══ DEBTS ══
 function openAddDebt(){
-  showModal('Nova Divida','',
-    '<input class="field" id="mDN" placeholder="Nome da divida (Ex: Emprestimo Banco)">'+
-    '<div style="display:flex;gap:8px;margin-bottom:0">'+
-    '<div class="field-wrap"><div class="field-label">Total da divida</div><input class="field" id="mDT" type="number" inputmode="decimal" placeholder="10000" style="margin-bottom:0"></div>'+
-    '<div class="field-wrap"><div class="field-label">Total de parcelas</div><input class="field" id="mDQT" type="number" inputmode="numeric" placeholder="24" min="1" style="margin-bottom:0"></div>'+
-    '</div><br>'+
-    '<div style="display:flex;gap:8px;margin-bottom:0">'+
-    '<div class="field-wrap"><div class="field-label">Parcelas ja pagas</div><input class="field" id="mDQP" type="number" inputmode="numeric" placeholder="0" min="0" style="margin-bottom:0" value="0"></div>'+
+  showModal('Nova Dívida','',
+    '<input class="field" id="mDN" placeholder="Nome (Ex: Emprestimo, Financiamento)">'+
+    '<div style="display:flex;gap:8px;margin-bottom:9px">'+
+    '<div class="field-wrap"><div class="field-label">Total da dívida</div><div class="amount-field-wrap"><span class="amount-prefix">R$</span><input class="field amount-field" id="mDT" type="text" inputmode="decimal" placeholder="0,00" oninput="previewInstallment()" style="margin-bottom:0"></div></div>'+
+    '<div class="field-wrap"><div class="field-label">Total de parcelas</div><input class="field" id="mDQT" type="number" inputmode="numeric" placeholder="24" min="1" oninput="previewInstallment()" style="margin-bottom:0"></div>'+
+    '</div>'+
+    '<div id="debtPreview" style="padding:8px 10px;background:var(--blue-dim);border-radius:6px;font-size:12px;color:var(--blue-bright);margin-bottom:9px;display:none">💡 Parcela mensal: <strong id="debtPreviewVal">R$ 0,00</strong></div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:9px">'+
+    '<div class="field-wrap"><div class="field-label">Parcelas já pagas</div><input class="field" id="mDQP" type="number" inputmode="numeric" placeholder="0" min="0" style="margin-bottom:0" value="0"></div>'+
     '<div class="field-wrap"><div class="field-label">Dia vencimento</div><input class="field" id="mDD" type="number" inputmode="numeric" placeholder="10" min="1" max="31" style="margin-bottom:0"></div>'+
-    '</div><br>'+
-    '<button class="btn-main" onclick="addDebt()">Criar Divida</button>'
+    '</div>'+
+    '<button class="btn-main" onclick="addDebt()">Criar Dívida</button>'
   );
+  setTimeout(()=>initCurrencyField('mDT'),50);
+}
+function previewInstallment(){
+  const total=parseBRL(document.getElementById('mDT')?.value)||0;
+  const parcelas=parseInt(document.getElementById('mDQT')?.value)||0;
+  const prev=document.getElementById('debtPreview');
+  const prevVal=document.getElementById('debtPreviewVal');
+  if(prev&&prevVal&&total>0&&parcelas>0){prev.style.display='block';prevVal.textContent=R(total/parcelas)+'/mês';}
+  else if(prev){prev.style.display='none';}
 }
 async function addDebt(){
   const name=document.getElementById('mDN').value.trim();
@@ -1633,11 +1645,63 @@ function getProjectedRecs(monthKey){
       d=nd;
     }
   }
+  // Also project subscriptions (monthly, on dueDay)
+  const[tYs,tMs]=monthKey.split('-').map(Number);
+  for(const s of subs){
+    if(!s.dueDay) continue;
+    // Check if already paid this month
+    if((s.paidDates||[]).some(pd=>pd.startsWith(monthKey))) continue;
+    const dateStr=monthKey+'-'+String(s.dueDay).padStart(2,'0');
+    proj.push({
+      ...s,id:'proj_sub_'+s.id+'_'+monthKey,_projected:true,_subId:s.id,
+      _recId:null,desc:s.name,date:dateStr,month:monthKey,type:'exp',
+      freq:'monthly',status:'a_pagar'
+    });
+  }
+
+  // Also project active debts (monthly, on dueDay)
+  for(const d of debts){
+    if(d.paidInstallments>=d.totalInstallments) continue;
+    if(!d.dueDay) continue;
+    // Check if already paid this month
+    if((d.paidDates||[]).some(pd=>pd.startsWith(monthKey))) continue;
+    const dateStr=monthKey+'-'+String(d.dueDay).padStart(2,'0');
+    proj.push({
+      id:'proj_debt_'+d.id+'_'+monthKey,_projected:true,_debtId:d.id,_recId:null,
+      desc:d.name+' (parcela)',amount:d.monthlyPayment,date:dateStr,month:monthKey,
+      type:'exp',cat:'Contas',freq:'monthly',status:'a_pagar'
+    });
+  }
+
   return proj;
 }
 
 // Confirm a projected rec (both income and expense)
 function confirmProj(recId,date,type){
+  // Handle projected subscription
+  const projId=recId||'';
+  if(projId.startsWith('proj_sub_')){
+    const subId=projId.replace('proj_sub_','').split('_')[0];
+    const s=subs.find(x=>x.id===subId);if(!s)return;
+    if(!s.paidDates)s.paidDates=[];s.paidDates.push(date);
+    const[y,m]=date.split('-').map(Number);
+    txs.unshift({id:'tx'+Date.now(),desc:s.name,amount:s.amount,date,cat:s.cat||'Assinaturas',
+      type:'exp',payMethod:'pix',month:mk(y,m-1),status:'paid'});
+    saveAll();render();toast('s','Pago!',s.name+' · '+R(s.amount));return;
+  }
+  // Handle projected debt installment
+  if(projId.startsWith('proj_debt_')){
+    const debtId=projId.replace('proj_debt_','').split('_')[0];
+    const d=debts.find(x=>x.id===debtId);if(!d)return;
+    if(!d.paidDates)d.paidDates=[];d.paidDates.push(date);
+    d.paidInstallments=(d.paidInstallments||0)+1;
+    const[y,m]=date.split('-').map(Number);
+    txs.unshift({id:'tx'+Date.now(),desc:d.name+' (parcela)',amount:d.monthlyPayment,date,
+      cat:'Contas',type:'exp',payMethod:'boleto',month:mk(y,m-1),status:'paid'});
+    if(d.paidInstallments>=d.totalInstallments){debts=debts.filter(x=>x.id!==d.id);toast('s','Dívida quitada!',d.name);}
+    else toast('s','Parcela paga!',d.name+' — '+(d.totalInstallments-d.paidInstallments)+' restantes');
+    saveAll();render();return;
+  }
   const r=recs.find(x=>x.id===recId);if(!r)return;
   const[y,m]=date.split('-').map(Number);
   const isInc=type==='inc';
