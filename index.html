@@ -803,11 +803,9 @@ input:checked+.slider:before{transform:translateX(16px)}
     <div class="page" id="page-relatorios">
       <div class="period-bar">
         <button class="pchip active" data-p="month" onclick="setPeriod(this)">Este Mês</button>
-        <button class="pchip" data-p="quarter" onclick="setPeriod(this)">Trimestre</button>
-        <button class="pchip" data-p="semester" onclick="setPeriod(this)">Semestre</button>
-        <button class="pchip" data-p="year" onclick="setPeriod(this)">Ano</button>
-        <button class="pchip" data-p="proj3" onclick="setPeriod(this)">Próx. 3 meses</button>
-        <button class="pchip" data-p="proj6" onclick="setPeriod(this)">Próx. 6 meses</button>
+        <button class="pchip" data-p="quarter" onclick="setPeriod(this)">3 meses</button>
+        <button class="pchip" data-p="semester" onclick="setPeriod(this)">6 meses</button>
+        <button class="pchip" data-p="year" onclick="setPeriod(this)">12 meses</button>
         <button class="pchip" data-p="all" onclick="setPeriod(this)">Tudo</button>
       </div>
       <div class="chart-grid">
@@ -1686,77 +1684,65 @@ function setPeriod(btn){
   renderCharts();
 }
 function getTxsPeriod(){
-  // For projection modes, combine real + projected across future months
-  if(chartPeriod==='proj3'||chartPeriod==='proj6'){
-    const fwd=chartPeriod==='proj3'?3:6;
-    const allItems=[];
-    for(let i=0;i<=fwd;i++){
+  // Returns all items (real + projected) for the selected period
+  const todayKey=new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0');
+  let monthCount=1;
+  if(chartPeriod==='month') monthCount=1;
+  else if(chartPeriod==='quarter') monthCount=3;
+  else if(chartPeriod==='semester') monthCount=6;
+  else if(chartPeriod==='year') monthCount=12;
+  else if(chartPeriod==='all'){
+    // All real data + next 3 months projected
+    const allItems=[...txs];
+    for(let i=1;i<=3;i++){
       let m=curM+i,y=curY;while(m>11){m-=12;y++;}
-      const key=mk(y,m);
-      allItems.push(...txs.filter(t=>t.month===key));
-      allItems.push(...getProjectedRecs(key));
+      allItems.push(...getProjectedRecs(mk(y,m)));
     }
     return allItems;
   }
-  const today=new Date();const start=new Date(today);
-  if(chartPeriod==='week')start.setDate(today.getDate()-7);
-  else if(chartPeriod==='month'){start.setDate(1);start.setHours(0,0,0,0);}
-  else if(chartPeriod==='quarter')start.setMonth(today.getMonth()-3);
-  else if(chartPeriod==='semester')start.setMonth(today.getMonth()-6);
-  else if(chartPeriod==='year'){start.setMonth(0);start.setDate(1);}
-  else return txs;
-  return txs.filter(t=>new Date(t.date+'T12:00:00')>=start);
+  // For month/quarter/semester/year: start from current month, show forward
+  const allItems=[];
+  for(let i=0;i<monthCount;i++){
+    let m=curM+i,y=curY;while(m>11){m-=12;y++;}
+    const key=mk(y,m);
+    allItems.push(...txs.filter(t=>t.month===key));
+    allItems.push(...getProjectedRecs(key));
+  }
+  return allItems;
 }
 function getBarData(){
+  // Build bar chart data: current month + forward months (with projections)
   const labels=[],incs=[],exps=[],futureFlags=[];
-  const today=new Date();
-  const todayKey=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0');
+  const todayKey=new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0');
 
-  if(chartPeriod==='week'){
-    for(let i=6;i>=0;i--){
-      const d=new Date();d.setDate(d.getDate()-i);
-      const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-      labels.push(['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()]);
-      const dt=txs.filter(t=>t.date===ds);
-      incs.push(dt.filter(t=>t.type==='inc').reduce((s,t)=>s+t.amount,0));
-      exps.push(dt.filter(t=>t.type==='exp').reduce((s,t)=>s+t.amount,0));
+  let monthCount=1;
+  if(chartPeriod==='month') monthCount=1;
+  else if(chartPeriod==='quarter') monthCount=3;
+  else if(chartPeriod==='semester') monthCount=6;
+  else if(chartPeriod==='year') monthCount=12;
+  else if(chartPeriod==='all'){
+    // Show last 3 real months + current + next 3 projected
+    monthCount=7;
+    for(let i=3;i>0;i--){
+      let m=curM-i,y=curY;while(m<0){m+=12;y--;}
+      const key=mk(y,m);
+      const list=txs.filter(t=>t.month===key);
+      labels.push(MS[m]);
+      incs.push(list.filter(t=>t.type==='inc').reduce((s,t)=>s+t.amount,0));
+      exps.push(list.filter(t=>t.type==='exp').reduce((s,t)=>s+t.amount,0));
       futureFlags.push(false);
     }
-    return{labels,incs,exps,futureFlags};
   }
 
-  // Projection modes: show current month + next N months
-  if(chartPeriod==='proj3'||chartPeriod==='proj6'){
-    const fwd=chartPeriod==='proj3'?3:6;
-    for(let i=0;i<=fwd;i++){
-      let m=curM+i,y=curY;
-      while(m>11){m-=12;y++;}
-      const key=mk(y,m);
-      const isFuture=key>todayKey;
-      const realList=txs.filter(t=>t.month===key);
-      const projList=getProjectedRecs(key);
-      const allInc=realList.filter(t=>t.type==='inc').reduce((s,t)=>s+t.amount,0)+projList.filter(t=>t.type==='inc').reduce((s,t)=>s+t.amount,0);
-      const allExp=realList.filter(t=>t.type==='exp').reduce((s,t)=>s+t.amount,0)+projList.filter(t=>t.type==='exp').reduce((s,t)=>s+t.amount,0);
-      labels.push(MS[m]+(isFuture?' *':''));
-      incs.push(allInc);
-      exps.push(allExp);
-      futureFlags.push(isFuture);
-    }
-    return{labels,incs,exps,futureFlags};
-  }
-
-  // Historical modes
-  const mn=chartPeriod==='all'?Math.max(6,new Set(txs.map(t=>t.month)).size):
-            chartPeriod==='month'?1:chartPeriod==='quarter'?3:chartPeriod==='semester'?6:12;
-  for(let i=mn-1;i>=0;i--){
-    let m=curM-i,y=curY;
-    while(m<0){m+=12;y--;}
+  // Current month + forward months
+  for(let i=0;i<monthCount;i++){
+    let m=curM+i,y=curY;while(m>11){m-=12;y++;}
     const key=mk(y,m);
     const isFuture=key>todayKey;
     const realList=txs.filter(t=>t.month===key);
     const projList=getProjectedRecs(key);
-    const allInc=realList.filter(t=>t.type==='inc').reduce((s,t)=>s+t.amount,0)+(isFuture?projList.filter(t=>t.type==='inc').reduce((s,t)=>s+t.amount,0):0);
-    const allExp=realList.filter(t=>t.type==='exp').reduce((s,t)=>s+t.amount,0)+(isFuture?projList.filter(t=>t.type==='exp').reduce((s,t)=>s+t.amount,0):0);
+    const allInc=realList.filter(t=>t.type==='inc').reduce((s,t)=>s+t.amount,0)+projList.filter(t=>t.type==='inc').reduce((s,t)=>s+t.amount,0);
+    const allExp=realList.filter(t=>t.type==='exp').reduce((s,t)=>s+t.amount,0)+projList.filter(t=>t.type==='exp').reduce((s,t)=>s+t.amount,0);
     labels.push(MS[m]+(isFuture?' *':''));
     incs.push(allInc);
     exps.push(allExp);
