@@ -279,6 +279,8 @@ select.field{cursor:pointer;font-size:13px}
 .tx-item:hover .tx-edit{opacity:1}
 @media(max-width:768px){.tx-edit{opacity:.5}}
 .edit-scope-row{display:flex;gap:6px;margin-bottom:12px}
+#editPayGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+#editPayGrid .pay-btn{min-height:58px;font-size:11px}
 .scope-btn{flex:1;padding:9px 6px;border-radius:var(--radius-xs);border:1px solid var(--border2);font-size:12px;font-weight:600;cursor:pointer;background:var(--card2);color:var(--text-muted);transition:all .15s;text-align:center}
 .scope-btn.sel{border-color:var(--blue);background:var(--blue-dim);color:var(--blue-bright)}
 .badge{display:inline-block;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px;vertical-align:middle}
@@ -1630,6 +1632,7 @@ function editTx(id){
     +scopeSection
     +'<div style=\"display:flex;gap:8px;margin-top:4px\"><button class=\"btn-main\" style=\"flex:2\" onclick=\"saveTxEdit()\">💾 Salvar</button><button class=\"bk-btn red\" style=\"flex:1;padding:11px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer\" onclick=\"deleteTxFromEdit()\">🗑️ Excluir</button></div>';
   showModal(isInc?'✏️ Editar Receita':'✏️ Editar Despesa','',body);
+  setTimeout(()=>{initCurrencyField('etAmount');},50);
 }
 
 function setEditScope(scope,btn){
@@ -1642,7 +1645,7 @@ async function saveTxEdit(){
   const t=txs.find(x=>x.id===_editTxId);
   if(!t){closeModal();return;}
   const desc=document.getElementById('etDesc').value.trim()||t.desc;
-  const amount=parseFloat(document.getElementById('etAmount').value)||t.amount;
+  const amount=parseBRL(document.getElementById('etAmount').value)||t.amount;
   const date=document.getElementById('etDate').value||t.date;
   const cat=document.getElementById('etCat').value||t.cat;
   const payBtn=document.querySelector('#editPayGrid .pay-btn.sel');
@@ -1894,6 +1897,7 @@ function renderDashboard(){
   const todayMK=new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0');
   const isCurMonth=curKey()===todayMK;
   nrt.style.display=(isCurMonth&&upcoming.length)?'flex':'none';
+  nrl.style.display=isCurMonth?'block':'none';
   nrl.innerHTML=upcoming.map(u=>{
     const daysLeft=Math.ceil((new Date(u.dueDate+'T12:00:00')-new Date())/(1000*60*60*24));
     const urg=daysLeft<=0?'var(--red)':daysLeft<=3?'var(--red)':daysLeft<=7?'var(--orange)':'var(--text-muted)';
