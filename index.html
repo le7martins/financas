@@ -1409,7 +1409,8 @@ function txItemHTML(t){
   const ds=d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
   const sign=t.type==='inc'?'+':'-';
   const projBadge=isProj?'<span class="badge badge-proj">📅 Previsto</span>':'';
-  const pendBadge=isPending?'<span class="badge badge-orange">⏳ Pendente</span>':isAPagar?'<span class="badge badge-orange">⏳ A Pagar</span>':'';
+  const isPago=t.type==='exp'&&(t.status==='paid'||(!t.status&&!isProj));
+  const pendBadge=isPending?'<span class="badge badge-orange">⏳ Pendente</span>':isAPagar?'<span class="badge badge-orange">⏳ A Pagar</span>':isPago?'<span class="badge" style="background:var(--green-dim);color:var(--green)">✓ Pago</span>':'';
   const recBadge=t.recId&&!isProj?'<span class="badge badge-blue">🔁</span>':'';
   const payInfo=t.payMethod&&t.type!=='inc'?'<div class="tx-pay-badge">'+(PAY_ICO[t.payMethod]||'')+' '+(PAY_LBL[t.payMethod]||'')+'</div>':'';
   const pagarBtn=isAPagar?'<button style="background:var(--orange);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;margin-left:4px" onclick="markPaid(\''+t.id+'\')" >Pagar ✓</button>':'';
