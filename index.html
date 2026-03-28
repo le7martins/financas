@@ -1443,7 +1443,8 @@ function txItemHTML(t){
   } else {
     rightBtn=`<button class="tx-edit" onclick="editTx('${t.id}')" aria-label="Editar">✏️ Editar</button>`;
   }
-  return '<div class="tx-item" style="'+itemStyle+'"><div class="tx-icon" style="'+bg+'">'+ico+'</div><div class="tx-body"><div class="tx-desc">'+(t.desc||t.cat)+projBadge+recBadge+'</div><div class="tx-meta">'+t.cat+' · '+ds+payMeta+'</div>'+(pendBadge?'<div style="margin-top:5px">'+pendBadge+'</div>':'')+'</div><div class="tx-right"><div class="tx-amount '+(isInc?'inc':'exp')+'">'+sign+R(t.amount)+'</div>'+rightBtn+'</div></div>';
+  const badgeLine=(pendBadge||projBadge||recBadge)?'<div style="margin-top:5px">'+projBadge+pendBadge+recBadge+'</div>':'';
+  return '<div class="tx-item" style="'+itemStyle+'"><div class="tx-icon" style="'+bg+'">'+ico+'</div><div class="tx-body"><div class="tx-desc">'+(t.desc||t.cat)+'</div><div class="tx-meta">'+t.cat+' · '+ds+payMeta+'</div>'+badgeLine+'</div><div class="tx-right"><div class="tx-amount '+(isInc?'inc':'exp')+'">'+sign+R(t.amount)+'</div>'+rightBtn+'</div></div>';
 }
 
 
