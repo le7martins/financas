@@ -610,14 +610,6 @@ input:checked+.slider:before{transform:translateX(16px)}
         <div class="month-label" id="lancMonthLbl">Março 2026</div>
         <button class="month-arrow" onclick="nextM()" aria-label="Próximo mês">›</button>
       </div>
-      <!-- TABS -->
-      <div class="tab-row" role="tablist">
-        <button class="tab-btn active" id="tabTx" onclick="setLancTab('tx')" role="tab" aria-selected="true">📋 Transações</button>
-        <button class="tab-btn" id="tabFut" onclick="setLancTab('fut')" role="tab" aria-selected="false">📅 Futuros</button>
-      </div>
-      <!-- LANÇAMENTO FUTURO BTN -->
-      <button class="btn-outline" style="width:100%;justify-content:center;margin-bottom:12px" onclick="openFutureForm()">📅 Lançamento Futuro</button>
-
       <!-- FORM -->
       <div class="form-box" id="lancForm">
         <div class="form-box-title">➕ Novo Lançamento</div>
@@ -642,31 +634,63 @@ input:checked+.slider:before{transform:translateX(16px)}
             <select class="field" id="txCat" style="margin-bottom:0"></select>
           </div>
         </div>
-        <!-- PAYMENT METHOD -->
-        <div class="pay-label">Forma de Pagamento</div>
-        <div class="form-pay-grid" id="payGrid">
-          <button class="pay-btn sel" data-pay="pix" onclick="selPay(this)"><span class="pay-icon">📱</span>PIX</button>
-          <button class="pay-btn" data-pay="debito" onclick="selPay(this)"><span class="pay-icon">💳</span>Débito</button>
-          <button class="pay-btn" data-pay="credito" onclick="selPay(this)"><span class="pay-icon">💳</span>Crédito</button>
-          <button class="pay-btn" data-pay="dinheiro" onclick="selPay(this)"><span class="pay-icon">💵</span>Dinheiro</button>
-          <button class="pay-btn" data-pay="cheque" onclick="selPay(this)"><span class="pay-icon">📄</span>Cheque</button>
-          <button class="pay-btn" data-pay="boleto" onclick="selPay(this)"><span class="pay-icon">📋</span>Boleto</button>
+
+        <!-- DESPESA: Forma de Pagamento -->
+        <div id="paySection">
+          <div class="pay-label">Forma de Pagamento</div>
+          <div class="form-pay-grid" id="payGrid">
+            <button class="pay-btn sel" data-pay="pix" onclick="selPay(this)"><span class="pay-icon">📱</span>PIX</button>
+            <button class="pay-btn" data-pay="debito" onclick="selPay(this)"><span class="pay-icon">💳</span>Débito</button>
+            <button class="pay-btn" data-pay="credito" onclick="selPay(this)"><span class="pay-icon">💳</span>Crédito</button>
+            <button class="pay-btn" data-pay="dinheiro" onclick="selPay(this)"><span class="pay-icon">💵</span>Dinheiro</button>
+            <button class="pay-btn" data-pay="cheque" onclick="selPay(this)"><span class="pay-icon">📄</span>Cheque</button>
+            <button class="pay-btn" data-pay="boleto" onclick="selPay(this)"><span class="pay-icon">📋</span>Boleto</button>
+          </div>
+          <div id="cardSelRow" style="display:none;margin-bottom:9px">
+            <div class="field-label">Cartão de Crédito</div>
+            <select class="field" id="txCardSel" style="margin-bottom:0"></select>
+          </div>
+          <div id="accSelRow" style="margin-bottom:9px">
+            <div class="field-label">Conta (opcional)</div>
+            <select class="field" id="txAccSel" style="margin-bottom:0"><option value="">Selecione...</option></select>
+          </div>
         </div>
-        <!-- CARD SELECT (visible when credito) -->
-        <div id="cardSelRow" style="display:none;margin-bottom:9px">
-          <div class="field-label">Cartão de Crédito</div>
-          <select class="field" id="txCardSel" style="margin-bottom:0"></select>
+
+        <!-- RECEITA: Status + Conta -->
+        <div id="incSection" style="display:none">
+          <div class="field-label" style="margin-bottom:7px">Status</div>
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <button class="pay-btn sel" id="statusRecebido" data-status="recebido" onclick="selStatus(this)" style="flex:1;padding:10px 6px"><span class="pay-icon">✅</span>Recebido</button>
+            <button class="pay-btn" id="statusPendente" data-status="pendente" onclick="selStatus(this)" style="flex:1;padding:10px 6px"><span class="pay-icon">⏳</span>Pendente</button>
+          </div>
+          <div style="margin-bottom:9px">
+            <div class="field-label">Depositar em</div>
+            <select class="field" id="txAccSelInc" style="margin-bottom:0"><option value="">Selecione a conta...</option></select>
+          </div>
         </div>
-        <!-- ACCOUNT SELECT -->
-        <div id="accSelRow" style="margin-bottom:9px">
-          <div class="field-label">Conta (opcional)</div>
-          <select class="field" id="txAccSel" style="margin-bottom:0"><option value="">Selecione...</option></select>
+
+        <!-- RECORRENTE (both types) -->
+        <div style="background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius-xs);padding:11px;margin-bottom:10px">
+          <label class="switch-wrap" onclick="toggleRecForm()">
+            <div><div class="switch-lbl">🔁 Recorrente</div><div class="switch-sub" id="recFormSub">Repete nos meses seguintes</div></div>
+            <div class="switch"><input type="checkbox" id="recSwitch"><span class="slider"></span></div>
+          </label>
+          <div id="recFormOpts" style="display:none;margin-top:10px">
+            <div class="field-label" style="margin-bottom:7px">Frequência</div>
+            <div class="freq-grid">
+              <button class="freq-btn active" data-freq="monthly" onclick="selFreq(this)">Mensal</button>
+              <button class="freq-btn" data-freq="weekly" onclick="selFreq(this)">Semanal</button>
+              <button class="freq-btn" data-freq="biweekly" onclick="selFreq(this)">Quinzenal</button>
+              <button class="freq-btn" data-freq="quarterly" onclick="selFreq(this)">Trimestral</button>
+              <button class="freq-btn" data-freq="yearly" onclick="selFreq(this)">Anual</button>
+            </div>
+            <div id="expInstRow" style="display:none">
+              <div class="field-label">Número de parcelas (0 = indefinido)</div>
+              <input class="field" id="txInstallments" type="number" inputmode="numeric" placeholder="0 = sem limite" min="0" value="0">
+            </div>
+          </div>
         </div>
-        <!-- FUTURE FLAG (hidden by default) -->
-        <div id="futureRow" style="display:none;margin-bottom:9px">
-          <div class="field-label">Data prevista</div>
-          <input class="field" id="txFutureDate" type="date" style="margin-bottom:0">
-        </div>
+
         <button class="btn-main" id="addTxBtn" onclick="addTx()">+ Lançar Despesa</button>
       </div>
 
@@ -684,17 +708,12 @@ input:checked+.slider:before{transform:translateX(16px)}
         <button class="fchip active" data-f="all" onclick="setTxFilter(this)">Todos</button>
         <button class="fchip" data-f="inc" onclick="setTxFilter(this)">Receitas</button>
         <button class="fchip" data-f="exp" onclick="setTxFilter(this)">Despesas</button>
+        <button class="fchip" data-f="pendente" onclick="setTxFilter(this)">⏳ Pendentes</button>
         <button class="fchip" data-f="credito" onclick="setTxFilter(this)">Crédito</button>
-        <button class="fchip" data-f="pix" onclick="setTxFilter(this)">PIX</button>
       </div>
       <div class="sec-title">Transações <small id="txListCount">0</small></div>
       <div class="tx-list" id="txList"></div>
 
-      <!-- FUTURE LIST (hidden by default) -->
-      <div id="futureListSection" style="display:none">
-        <div class="sec-title">Lançamentos Futuros <small id="futCount">0</small></div>
-        <div class="tx-list" id="futureList"></div>
-      </div>
     </div>
 
     <!-- CARTÕES -->
@@ -904,7 +923,7 @@ const PTITLES={dashboard:'Dashboard',lancamentos:'Lancamentos',cartoes:'Cartoes'
 
 // ══ STATE ══
 let curM=new Date().getMonth(), curY=new Date().getFullYear();
-let curTxType='exp', curPayMethod='pix', lancTab='tx', chartPeriod='month', txFilter='all', txSearch='';
+let curTxType='exp', curPayMethod='pix', curStatus='recebido', curFreq='monthly', chartPeriod='month', txFilter='all', txSearch='';
 let profile=null, txs=[], subs=[], recs=[], debts=[], cards=[], accounts=[];
 let uid=null, charts_={};
 let dPr=null;
@@ -1120,7 +1139,13 @@ function setTxType(t){
   curTxType=t;
   document.getElementById('btnExp').className='type-btn'+(t==='exp'?' act-exp':'');
   document.getElementById('btnInc').className='type-btn'+(t==='inc'?' act-inc':'');
-  document.getElementById('addTxBtn').textContent=t==='inc'?'+ Lancar Receita':'+ Lancar Despesa';
+  document.getElementById('addTxBtn').textContent=t==='inc'?'+ Lançar Receita':'+ Lançar Despesa';
+  // show/hide sections
+  document.getElementById('paySection').style.display=t==='exp'?'block':'none';
+  document.getElementById('incSection').style.display=t==='inc'?'block':'none';
+  // installments only for expenses
+  const expInstRow=document.getElementById('expInstRow');
+  if(expInstRow)expInstRow.style.display=t==='exp'?'block':'none';
   updateCats();populateSels();
 }
 function updateCats(){
@@ -1135,48 +1160,103 @@ function selPay(btn){
   document.getElementById('accSelRow').style.display=curPayMethod==='credito'?'none':'block';
 }
 function populateSels(){
-  document.getElementById('txAccSel').innerHTML='<option value="">Selecione...</option>'+accounts.map(a=>'<option value="'+a.id+'">'+a.icon+' '+a.name+'</option>').join('');
+  const accOpts='<option value="">Selecione...</option>'+accounts.map(a=>'<option value="'+a.id+'">'+a.icon+' '+a.name+'</option>').join('');
+  document.getElementById('txAccSel').innerHTML=accOpts;
+  document.getElementById('txAccSelInc').innerHTML='<option value="">Selecione a conta...</option>'+accounts.map(a=>'<option value="'+a.id+'">'+a.icon+' '+a.name+'</option>').join('');
   document.getElementById('txCardSel').innerHTML='<option value="">Selecione...</option>'+cards.map(c=>'<option value="'+c.id+'">'+c.icon+' '+c.name+'</option>').join('');
 }
-function setLancTab(tab){
-  lancTab=tab;
-  document.getElementById('tabTx').className='tab-btn'+(tab==='tx'?' active':'');
-  document.getElementById('tabFut').className='tab-btn'+(tab==='fut'?' active':'');
-  document.getElementById('futureRow').style.display=tab==='fut'?'block':'none';
-  document.getElementById('futureListSection').style.display=tab==='fut'?'block':'none';
-  const txSect=document.querySelector('#page-lancamentos .sec-title');
-  renderTxList();
+function selStatus(btn){
+  document.querySelectorAll('#incSection .pay-btn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+  curStatus=btn.dataset.status;
 }
-function openFutureForm(){setLancTab('fut');}
+function toggleRecForm(){
+  const sw=document.getElementById('recSwitch');
+  // toggle was triggered by label click, checkbox already toggled
+  const open=sw.checked;
+  document.getElementById('recFormOpts').style.display=open?'block':'none';
+  const sub=document.getElementById('recFormSub');
+  if(sub)sub.textContent=open?'Configure a frequencia':'Repete nos meses seguintes';
+}
+function selFreq(btn){
+  document.querySelectorAll('#recFormOpts .freq-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  curFreq=btn.dataset.freq;
+}
 
 async function addTx(){
   const amount=parseFloat(document.getElementById('txAmount').value);
   const desc=document.getElementById('txDesc').value.trim();
   const date=document.getElementById('txDate').value;
   const cat=document.getElementById('txCat').value;
-  const accId=document.getElementById('txAccSel').value;
+  const isInc=curTxType==='inc';
+  const accId=isInc
+    ?document.getElementById('txAccSelInc').value
+    :document.getElementById('txAccSel').value;
   const cardId=document.getElementById('txCardSel').value;
-  const isFuture=lancTab==='fut';
-  const futureDate=isFuture?document.getElementById('txFutureDate').value:null;
+  const isRec=document.getElementById('recSwitch').checked;
+  const installments=parseInt(document.getElementById('txInstallments')?.value)||0;
+
   if(!amount||!date){toast('w','Preencha valor e data','');return;}
-  if(curPayMethod==='credito'&&!cardId){toast('w','Selecione o cartao','');return;}
+  if(!isInc&&curPayMethod==='credito'&&!cardId){toast('w','Selecione o cartao','');return;}
+
   const[y,m]=date.split('-').map(Number);
+
+  // If recurring, create a rec entry (for both inc and exp)
+  if(isRec){
+    const rec={
+      id:'r'+Date.now(),desc:desc||cat,amount,cat,freq:curFreq,
+      dueDate:date,paidDates:[],paidCount:0,
+      totalInstallments:isInc?0:installments,
+      type:curTxType,accId:accId||null
+    };
+    recs.push(rec);
+    // also create the current month's entry
+    const tx={
+      id:'tx'+Date.now(),desc:desc||cat,amount,date,cat,type:curTxType,
+      payMethod:isInc?'pix':curPayMethod,month:mk(y,m-1),
+      accId:accId||null,cardId:!isInc?cardId||null:null,
+      recId:rec.id,status:isInc?curStatus:'paid'
+    };
+    txs.unshift(tx);
+    // update account balance only if receita=recebido or despesa
+    if(accId){
+      const a=accounts.find(x=>x.id===accId);
+      if(a&&(isInc&&curStatus==='recebido')){a.balance+=amount;}
+      else if(a&&!isInc){a.balance-=amount;}
+    }
+    if(!isInc&&cardId&&curPayMethod==='credito'){const c=cards.find(x=>x.id===cardId);if(c)c.used=(c.used||0)+amount;}
+    const btn=document.getElementById('addTxBtn');btn.disabled=true;btn.textContent='Salvando...';
+    await saveAll();
+    btn.disabled=false;btn.textContent=isInc?'+ Lançar Receita':'+ Lançar Despesa';
+    render();
+    document.getElementById('txAmount').value='';document.getElementById('txDesc').value='';
+    document.getElementById('recSwitch').checked=false;document.getElementById('recFormOpts').style.display='none';
+    toast('s','Recorrente criado!',R(amount)+' · vai aparecer nos proximos meses');
+    return;
+  }
+
+  // Normal (non-recurring) transaction
   const tx={
     id:'tx'+Date.now(),desc:desc||cat,amount,date,cat,type:curTxType,
-    payMethod:curPayMethod,month:mk(y,m-1),
-    accId:accId||null,cardId:cardId||null,
-    future:isFuture,futureDate:futureDate||null
+    payMethod:isInc?null:curPayMethod,month:mk(y,m-1),
+    accId:accId||null,cardId:!isInc?cardId||null:null,
+    status:isInc?curStatus:'paid'
   };
-  if(!isFuture&&accId){const a=accounts.find(x=>x.id===accId);if(a)a.balance+=curTxType==='inc'?amount:-amount;}
-  if(!isFuture&&cardId&&curPayMethod==='credito'){const c=cards.find(x=>x.id===cardId);if(c)c.used=(c.used||0)+amount;}
+  // Balance: income only if recebido, expense always
+  if(accId){
+    const a=accounts.find(x=>x.id===accId);
+    if(a&&isInc&&curStatus==='recebido'){a.balance+=amount;}
+    else if(a&&!isInc){a.balance-=amount;}
+  }
+  if(!isInc&&cardId&&curPayMethod==='credito'){const c=cards.find(x=>x.id===cardId);if(c)c.used=(c.used||0)+amount;}
   txs.unshift(tx);
   const btn=document.getElementById('addTxBtn');btn.disabled=true;btn.textContent='Salvando...';
   await saveAll();
-  btn.disabled=false;btn.textContent=curTxType==='inc'?'+ Lancar Receita':'+ Lancar Despesa';
+  btn.disabled=false;btn.textContent=isInc?'+ Lançar Receita':'+ Lançar Despesa';
   render();
-  document.getElementById('txAmount').value='';
-  document.getElementById('txDesc').value='';
-  toast('s',isFuture?'Lancamento futuro criado!':'Adicionado!',R(amount));
+  document.getElementById('txAmount').value='';document.getElementById('txDesc').value='';
+  toast('s','Adicionado!',R(amount));
 }
 async function delTx(id){
   const tx=txs.find(t=>t.id===id);
@@ -1192,36 +1272,49 @@ function filterTxs(){txSearch=document.getElementById('searchTx').value.toLowerC
 function setTxFilter(btn){document.querySelectorAll('.fchip').forEach(b=>b.classList.remove('active'));btn.classList.add('active');txFilter=btn.dataset.f;renderTxList();}
 function renderTxList(){
   const key=curKey();
-  const isFut=lancTab==='fut';
-  let list=txs.filter(t=>isFut?t.future:(!t.future&&t.month===key));
-  if(txSearch)list=list.filter(t=>(t.desc||'').toLowerCase().includes(txSearch)||t.cat.toLowerCase().includes(txSearch));
+  let list=txs.filter(t=>t.month===key);
+  // also add projected recurring income for this month
+  const projInc=getProjectedInc(key);
+  const combined=[...list,...projInc];
+  if(txSearch){const q=txSearch;list=combined.filter(t=>(t.desc||'').toLowerCase().includes(q)||t.cat.toLowerCase().includes(q));}
+  else{list=combined;}
   if(txFilter!=='all'){
     if(txFilter==='inc'||txFilter==='exp')list=list.filter(t=>t.type===txFilter);
+    else if(txFilter==='pendente')list=list.filter(t=>t.status==='pendente'||t._projected);
     else list=list.filter(t=>t.payMethod===txFilter);
   }
-  const targetId=isFut?'futureList':'txList';
-  const countId=isFut?'futCount':'txListCount';
-  document.getElementById(countId).textContent=list.length+' registros';
-  const el=document.getElementById(targetId);
-  el.innerHTML=list.length?list.map(t=>txItemHTML(t)).join(''):'<div class="empty"><div class="empty-ico">📭</div><p>Nenhuma transacao</p></div>';
-  // summary bar
-  const month=txs.filter(t=>!t.future&&t.month===key);
-  const inc=month.filter(t=>t.type==='inc').reduce((s,t)=>s+t.amount,0);
-  const exp=month.filter(t=>t.type==='exp'||t.payMethod==='credito').reduce((s,t)=>s+t.amount,0);
-  const cardExp=month.filter(t=>t.payMethod==='credito').reduce((s,t)=>s+t.amount,0);
-  document.getElementById('sbInc').textContent=Rsh(inc);
+  list.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  document.getElementById('txListCount').textContent=list.length+' registros';
+  const el=document.getElementById('txList');
+  el.innerHTML=list.length?list.map(t=>txItemHTML(t)).join(''):'<div class="empty"><div class="empty-ico">📭</div><p>Nenhuma transacao este mes</p></div>';
+  // summary bar (real + projected)
+  const real=txs.filter(t=>t.month===key);
+  const inc=real.filter(t=>t.type==='inc').reduce((s,t)=>s+t.amount,0);
+  const exp=real.filter(t=>t.type==='exp'||t.payMethod==='credito').reduce((s,t)=>s+t.amount,0);
+  const cardExp=real.filter(t=>t.payMethod==='credito').reduce((s,t)=>s+t.amount,0);
+  const projIncTotal=projInc.reduce((s,t)=>s+t.amount,0);
+  document.getElementById('sbInc').textContent=Rsh(inc+projIncTotal);
   document.getElementById('sbExp').textContent=Rsh(exp);
-  document.getElementById('sbBal').textContent=Rsh(inc-exp);
+  document.getElementById('sbBal').textContent=Rsh(inc+projIncTotal-exp);
   document.getElementById('sbCard').textContent=Rsh(cardExp);
 }
 function txItemHTML(t){
   const ico=catIco(t.cat);
-  const bg=t.type==='inc'?'background:var(--green-dim)':'background:var(--red-dim)';
-  const d=new Date(t.date+'T12:00:00');
+  const isProj=t._projected===true;
+  const isPending=t.type==='inc'&&t.status==='pendente';
+  const bg=isProj?'background:var(--border2)':t.type==='inc'?'background:var(--green-dim)':'background:var(--red-dim)';
+  const itemStyle=isProj?'opacity:.65;border-style:dashed':'';
+  const d=new Date((t.date||todayStr())+'T12:00:00');
   const ds=d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
   const sign=t.type==='inc'?'+':'-';
-  const futBadge=t.future?'<span class="badge badge-orange">Futuro</span>':'';
-  return '<div class="tx-item"><div class="tx-icon" style="'+bg+'">'+ico+'</div><div class="tx-body"><div class="tx-desc">'+( t.desc||t.cat)+futBadge+'</div><div class="tx-meta">'+t.cat+' · '+ds+'</div></div><div class="tx-right"><div class="tx-amount '+(t.type==='inc'?'inc':'exp')+'">'+sign+R(t.amount)+'</div><div class="tx-pay-badge">'+(PAY_ICO[t.payMethod]||'')+' '+(PAY_LBL[t.payMethod]||'')+'</div></div><button class="tx-del" onclick="delTx(\''+t.id+'\')" aria-label="Excluir">✕</button></div>';
+  const projBadge=isProj?'<span class="badge badge-proj">📅 Previsto</span>':'';
+  const pendBadge=isPending?'<span class="badge badge-orange">⏳ Pendente</span>':'';
+  const recBadge=t.recId&&!isProj?'<span class="badge badge-blue">🔁</span>':'';
+  const payInfo=t.payMethod&&t.type!=='inc'?'<div class="tx-pay-badge">'+(PAY_ICO[t.payMethod]||'')+' '+(PAY_LBL[t.payMethod]||'')+'</div>':'';
+  const recvBtn=isPending&&!isProj?'<button style="background:var(--green);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;margin-left:4px" onclick="markReceived(\''+t.id+'\')" >Receber</button>':'';
+  const projBtn=isProj?'<button style="background:var(--green);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="confirmProjInc(\''+t._recId+'\',\''+t.date+'\')" >Receber</button>':'';
+  const delBtn=isProj?'':`<button class="tx-del" onclick="delTx('${t.id}')" aria-label="Excluir">✕</button>`;
+  return '<div class="tx-item" style="'+itemStyle+'"><div class="tx-icon" style="'+bg+'">'+ico+'</div><div class="tx-body"><div class="tx-desc">'+(t.desc||t.cat)+projBadge+pendBadge+recBadge+'</div><div class="tx-meta">'+t.cat+' · '+ds+'</div></div><div class="tx-right"><div class="tx-amount '+(t.type==='inc'?'inc':'exp')+'">'+sign+R(t.amount)+'</div>'+payInfo+recvBtn+projBtn+'</div>'+delBtn+'</div>';
 }
 
 // ══ CARDS ══
@@ -1372,6 +1465,57 @@ function closeSubPage(){
   document.getElementById('gfMain').style.display='block';
   document.querySelectorAll('.sub-page').forEach(p=>p.classList.remove('active'));
 }
+
+// ══ PROJECTED INCOME (from recurring recs with type=inc) ══
+function getProjectedInc(monthKey){
+  const today=todayStr();
+  const proj=[];
+  const[my,mm]=monthKey.split('-').map(Number);
+  for(const r of recs){
+    if(r.type!=='inc') continue;
+    if(r.totalInstallments>0&&r.paidCount>=r.totalInstallments) continue;
+    // check if already has a real tx for this month from this rec
+    const hasReal=txs.some(t=>t.recId===r.id&&t.month===monthKey);
+    if(hasReal) continue;
+    // check if this rec is due in this month
+    let d=r.dueDate;
+    let count=0;
+    while(d&&count<60){
+      const[dy,dm]=d.split('-').map(Number);
+      if(mk(dy,dm-1)===monthKey){
+        proj.push({...r,id:'proj_'+r.id+'_'+monthKey,_projected:true,_recId:r.id,date:d,month:monthKey,type:'inc',status:'pendente'});
+        break;
+      }
+      // advance to next occurrence
+      const nd=nextDueDate(d,r.freq);
+      if(!nd||nd<=d) break;
+      d=nd; count++;
+    }
+  }
+  return proj;
+}
+function confirmProjInc(recId,date){
+  const r=recs.find(x=>x.id===recId);if(!r)return;
+  const[y,m]=date.split('-').map(Number);
+  if(!r.paidDates)r.paidDates=[];r.paidDates.push(date);
+  r.paidCount=(r.paidCount||0)+1;
+  const tx={id:'tx'+Date.now(),desc:r.desc,amount:r.amount,date,cat:r.cat,type:'inc',
+    payMethod:null,month:mk(y,m-1),recId,accId:r.accId||null,status:'recebido'};
+  txs.unshift(tx);
+  if(r.accId){const a=accounts.find(x=>x.id===r.accId);if(a)a.balance+=r.amount;}
+  // advance dueDate
+  const nd=nextDueDate(r.dueDate,r.freq);
+  if(nd)r.dueDate=nd;
+  if(r.totalInstallments>0&&r.paidCount>=r.totalInstallments){recs=recs.filter(x=>x.id!==recId);}
+  saveAll();render();toast('s','Recebido!',r.desc+' · '+R(r.amount));
+}
+function markReceived(txId){
+  const tx=txs.find(t=>t.id===txId);if(!tx)return;
+  tx.status='recebido';
+  if(tx.accId){const a=accounts.find(x=>x.id===tx.accId);if(a)a.balance+=tx.amount;}
+  saveAll();render();toast('s','Marcado como recebido!','');
+}
+
 
 // ══ RENDER ══
 function render(){
@@ -1624,8 +1768,7 @@ function installPWA(){if(!dPr)return;dPr.prompt();dPr.userChoice.then(()=>{dPr=n
 // ══ INIT ══
 function init(){
   document.getElementById('txDate').value=todayStr();
-  document.getElementById('txFutureDate').value=todayStr();
-  updateCats();
+  updateCats();setTxType('exp');
   // avatar pickers
   initAvPicker('avatarPicker',av=>{setupAv=av;});
   initAvPicker('editAvPicker');
