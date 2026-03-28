@@ -348,9 +348,9 @@ select.field{cursor:pointer;font-size:13px}
 .rec-val{font-size:13px;font-weight:700;color:var(--red)}
 .rec-val.inc{color:var(--green)}
 .rec-freq{font-size:10px;color:var(--blue-bright);background:var(--blue-dim);padding:2px 6px;border-radius:4px;display:inline-block;margin-top:3px}
-.rec-del{position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:12px;opacity:0;padding:4px;border-radius:4px}
-.rec-item:hover .rec-del{opacity:1}
-@media(max-width:768px){.rec-del{opacity:.4}}
+.rec-del{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:12px;padding:4px;border-radius:4px}
+.rec-edit{background:var(--blue-dim);border:1px solid var(--blue);cursor:pointer;color:var(--blue-bright);font-size:10px;font-weight:600;padding:3px 8px;border-radius:5px;white-space:nowrap}
+.rec-actions{display:flex;gap:5px;align-items:center;flex-shrink:0;margin-left:6px}
 .rec-pay-btn{background:var(--green);color:#000;border:none;border-radius:5px;padding:4px 9px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;margin-top:4px}
 .rec-pay-btn.inc-btn{background:var(--blue);color:#fff}
 
@@ -1793,12 +1793,21 @@ function renderDashboard(){
   const balEl=document.getElementById('dBal');balEl.textContent=(bal<0?'-':'')+R(bal);balEl.className='dc-value '+(bal>=0?'blue':'red');
   // next vencimentos
   const t=todayStr();
+  // Calculate next due date for a dueDay (day of month)
+  function nextDueDateFromDay(dueDay){
+    const now=new Date();
+    const today=now.getDate();
+    let m=now.getMonth(),y=now.getFullYear();
+    if(dueDay<=today){m++;if(m>11){m=0;y++;}} // already passed this month → next month
+    return y+'-'+String(m+1).padStart(2,'0')+'-'+String(dueDay).padStart(2,'0');
+  }
   const upcoming=[
-    ...subs.map(s=>({name:s.name,amount:s.amount,dueDate:curKey()+'-'+String(s.dueDay).padStart(2,'0'),cat:s.cat||'Assinaturas',type:'exp'})),
-    ...recs.filter(r=>r.dueDate>=t&&!(r.totalInstallments>0&&(r.paidCount||0)>=r.totalInstallments))
-           .map(r=>({name:r.desc,amount:r.amount,dueDate:r.dueDate,cat:r.cat,type:r.type||'exp'})),
+    ...subs.filter(s=>!(s.paidDates||[]).some(pd=>pd.startsWith(curKey())))
+           .map(s=>({name:s.name,amount:s.amount,dueDate:nextDueDateFromDay(s.dueDay),cat:s.cat||'Assinaturas',type:'exp'})),
+    ...recs.filter(r=>r.type!=='inc'&&!(r.totalInstallments>0&&(r.paidCount||0)>=r.totalInstallments))
+           .map(r=>({name:r.desc,amount:r.amount,dueDate:r.dueDate,cat:r.cat,type:'exp'})),
     ...debts.filter(d=>d.paidInstallments<d.totalInstallments)
-            .map(d=>({name:d.name,amount:d.monthlyPayment,dueDate:curKey()+'-'+String(d.dueDay).padStart(2,'0'),cat:'Contas',type:'exp'}))
+            .map(d=>({name:d.name,amount:d.monthlyPayment,dueDate:nextDueDateFromDay(d.dueDay),cat:'Contas',type:'exp'}))
   ].sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).slice(0,5);
   const nrt=document.getElementById('nextRecTitle');
   const nrl=document.getElementById('nextRecList');
@@ -1835,6 +1844,89 @@ function renderCatBreakdown(id,list,total){
 }
 
 
+// ══ EDIT GASTOS FIXOS ══
+function editSub(id){
+  const s=subs.find(x=>x.id===id);if(!s)return;
+  const body='<div class="field-label">Nome</div><input class="field" id="esfName" value="'+s.name.replace(/"/g,'&quot;')+'">'+
+    '<div style="display:flex;gap:8px;margin-bottom:9px"><div class="field-wrap"><div class="field-label">Valor mensal</div><div class="amount-field-wrap"><span class="amount-prefix">R$</span><input class="field amount-field" id="esfVal" type="text" inputmode="decimal" style="margin-bottom:0" value="'+s.amount.toLocaleString('pt-BR',{minimumFractionDigits:2})+'"></div></div>'+
+    '<div class="field-wrap"><div class="field-label">Dia cobrança</div><input class="field" id="esfDay" type="number" min="1" max="31" style="margin-bottom:0" value="'+s.dueDay+'"></div></div>'+
+    '<div class="field-wrap" style="margin-bottom:12px"><div class="field-label">Categoria</div><select class="field" id="esfCat" style="margin-bottom:0"><option'+(s.cat==='Assinaturas'?' selected':'')+'>Assinaturas</option><option'+(s.cat==='Entretenimento'?' selected':'')+'>Entretenimento</option><option'+(s.cat==='Servicos'?' selected':'')+'>Servicos</option><option'+(s.cat==='Educacao'?' selected':'')+'>Educacao</option><option'+(s.cat==='Saude'?' selected':'')+'>Saude</option><option'+(s.cat==='Outros'?' selected':'')+'>Outros</option></select></div>'+
+    '<div style="display:flex;gap:8px"><button class="btn-main" style="flex:2" onclick="saveSubEdit(\''+id+'\')">💾 Salvar</button><button class="bk-btn red" style="flex:1;padding:11px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer" onclick="delSubConfirm(\''+id+'\')">🗑️ Excluir</button></div>';
+  showModal('✏️ Editar Assinatura','',body);
+  setTimeout(()=>initCurrencyField('esfVal'),50);
+}
+async function saveSubEdit(id){
+  const s=subs.find(x=>x.id===id);if(!s)return;
+  s.name=document.getElementById('esfName').value.trim()||s.name;
+  s.amount=parseBRL(document.getElementById('esfVal').value)||s.amount;
+  s.dueDay=parseInt(document.getElementById('esfDay').value)||s.dueDay;
+  s.cat=document.getElementById('esfCat').value||s.cat;
+  await saveAll();renderGastos();closeModal();toast('s','Assinatura atualizada!',s.name);
+}
+function delSubConfirm(id){
+  const s=subs.find(x=>x.id===id);if(!s)return;
+  closeModal();
+  showModal('Excluir assinatura?',s.name+' será removida permanentemente.',
+    '<div style="display:flex;gap:8px"><button class="bk-btn red" style="flex:1;padding:11px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer" onclick="delSub(\''+id+'\');closeModal()">Excluir</button><button class="btn-main" style="flex:1" onclick="closeModal()">Cancelar</button></div>');
+}
+
+function editRecFixed(id){
+  const r=recs.find(x=>x.id===id);if(!r)return;
+  const catOpts=CATS.exp.map(c=>'<option'+(c===r.cat?' selected':'')+'>'+c+'</option>').join('');
+  const freqBtns=['monthly','weekly','biweekly','quarterly','yearly'].map(f=>'<button class="freq-btn'+(r.freq===f?' active':'')+'" data-freq="'+f+'" onclick="selFreqBtn(this)">'+FREQ_LBL[f]+'</button>').join('');
+  const body='<div class="field-label">Descrição</div><input class="field" id="erfDesc" value="'+r.desc.replace(/"/g,'&quot;')+'">'+
+    '<div class="amount-field-wrap" style="margin-bottom:9px"><span class="amount-prefix">R$</span><input class="field amount-field" id="erfVal" type="text" inputmode="decimal" style="margin-bottom:0" value="'+r.amount.toLocaleString('pt-BR',{minimumFractionDigits:2})+'"></div>'+
+    '<div class="field-wrap" style="margin-bottom:9px"><div class="field-label">Categoria</div><select class="field" id="erfCat" style="margin-bottom:0">'+catOpts+'</select></div>'+
+    '<div class="field-wrap" style="margin-bottom:9px"><div class="field-label">Frequência</div><div class="freq-grid">'+freqBtns+'</div></div>'+
+    '<div class="field-wrap" style="margin-bottom:9px"><div class="field-label">Próximo vencimento</div><input class="field" id="erfDate" type="date" style="margin-bottom:0" value="'+r.dueDate+'"></div>'+
+    '<div style="display:flex;gap:8px"><button class="btn-main" style="flex:2" onclick="saveRecFixedEdit(\''+id+'\')">💾 Salvar</button><button class="bk-btn red" style="flex:1;padding:11px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer" onclick="delRecConfirm(\''+id+'\')">🗑️ Excluir</button></div>';
+  showModal('✏️ Editar Pagamento Recorrente','',body);
+  setTimeout(()=>initCurrencyField('erfVal'),50);
+}
+async function saveRecFixedEdit(id){
+  const r=recs.find(x=>x.id===id);if(!r)return;
+  r.desc=document.getElementById('erfDesc').value.trim()||r.desc;
+  r.amount=parseBRL(document.getElementById('erfVal').value)||r.amount;
+  r.cat=document.getElementById('erfCat').value||r.cat;
+  r.freq=(document.querySelector('#modalBody .freq-btn.active')||{dataset:{freq:r.freq}}).dataset.freq;
+  r.dueDate=document.getElementById('erfDate').value||r.dueDate;
+  await saveAll();renderGastos();closeModal();toast('s','Recorrente atualizado!',r.desc);
+}
+function delRecConfirm(id){
+  const r=recs.find(x=>x.id===id);if(!r)return;
+  closeModal();
+  showModal('Excluir recorrente?',r.desc+' será removido permanentemente.',
+    '<div style="display:flex;gap:8px"><button class="bk-btn red" style="flex:1;padding:11px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer" onclick="delRec(\''+id+'\');closeModal()">Excluir</button><button class="btn-main" style="flex:1" onclick="closeModal()">Cancelar</button></div>');
+}
+
+function editDebtFixed(id){
+  const d=debts.find(x=>x.id===id);if(!d)return;
+  const body='<div class="field-label">Nome</div><input class="field" id="edfName" value="'+d.name.replace(/"/g,'&quot;')+'">'+
+    '<div style="display:flex;gap:8px;margin-bottom:9px"><div class="field-wrap"><div class="field-label">Total da dívida</div><div class="amount-field-wrap"><span class="amount-prefix">R$</span><input class="field amount-field" id="edfTotal" type="text" inputmode="decimal" style="margin-bottom:0" value="'+d.totalAmount.toLocaleString('pt-BR',{minimumFractionDigits:2})+'"></div></div>'+
+    '<div class="field-wrap"><div class="field-label">Total parcelas</div><input class="field" id="edfQT" type="number" min="1" style="margin-bottom:0" value="'+d.totalInstallments+'"></div></div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:9px"><div class="field-wrap"><div class="field-label">Pagas até hoje</div><input class="field" id="edfQP" type="number" min="0" style="margin-bottom:0" value="'+d.paidInstallments+'"></div>'+
+    '<div class="field-wrap"><div class="field-label">Dia vencimento</div><input class="field" id="edfDay" type="number" min="1" max="31" style="margin-bottom:0" value="'+d.dueDay+'"></div></div>'+
+    '<div style="display:flex;gap:8px"><button class="btn-main" style="flex:2" onclick="saveDebtFixedEdit(\''+id+'\')">💾 Salvar</button><button class="bk-btn red" style="flex:1;padding:11px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer" onclick="delDebtConfirm(\''+id+'\')">🗑️ Excluir</button></div>';
+  showModal('✏️ Editar Dívida','',body);
+  setTimeout(()=>initCurrencyField('edfTotal'),50);
+}
+async function saveDebtFixedEdit(id){
+  const d=debts.find(x=>x.id===id);if(!d)return;
+  d.name=document.getElementById('edfName').value.trim()||d.name;
+  d.totalAmount=parseBRL(document.getElementById('edfTotal').value)||d.totalAmount;
+  d.totalInstallments=parseInt(document.getElementById('edfQT').value)||d.totalInstallments;
+  d.paidInstallments=parseInt(document.getElementById('edfQP').value)||0;
+  d.dueDay=parseInt(document.getElementById('edfDay').value)||d.dueDay;
+  d.monthlyPayment=d.totalAmount/d.totalInstallments;
+  await saveAll();renderGastos();closeModal();toast('s','Dívida atualizada!',d.name);
+}
+function delDebtConfirm(id){
+  const d=debts.find(x=>x.id===id);if(!d)return;
+  closeModal();
+  showModal('Excluir dívida?',d.name+' será removida permanentemente.',
+    '<div style="display:flex;gap:8px"><button class="bk-btn red" style="flex:1;padding:11px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer" onclick="delDebt(\''+id+'\');closeModal()">Excluir</button><button class="btn-main" style="flex:1" onclick="closeModal()">Cancelar</button></div>');
+}
+
 function renderGastos(){
   // totals — only expenses (exclude type==='inc')
   const expRecs=recs.filter(r=>r.type!=='inc');
@@ -1869,7 +1961,7 @@ function renderSubs(){
   const el=document.getElementById('subList');
   el.innerHTML=subs.length?subs.map(s=>{
     const isPaid=(s.paidDates||[]).some(pd=>pd.startsWith(curKey()));
-    return '<div class="rec-item"><div class="rec-icon" style="background:var(--blue-dim)">'+catIco(s.cat||'Assinaturas')+'</div><div class="rec-body"><div class="rec-name">'+s.name+(isPaid?'<span class="badge badge-blue"> Pago</span>':'')+'</div><div class="rec-meta">Dia '+s.dueDay+' · '+s.cat+'</div>'+(!isPaid?'<button class="rec-pay-btn" onclick="markDone(\'sub\',\''+s.id+'\')">Marcar Pago</button>':'')+'</div><div class="rec-right"><div class="rec-val">'+R(s.amount)+'</div><div class="rec-freq">Mensal</div></div><button class="rec-del" onclick="delSub(\''+s.id+'\')" aria-label="Excluir">✕</button></div>';
+    return '<div class="rec-item"><div class="rec-icon" style="background:var(--blue-dim)">'+catIco(s.cat||'Assinaturas')+'</div><div class="rec-body"><div class="rec-name">'+s.name+(isPaid?'<span class="badge badge-blue"> Pago</span>':'')+'</div><div class="rec-meta">Dia '+s.dueDay+' · '+s.cat+'</div>'+(!isPaid?'<button class="rec-pay-btn" onclick="markDone(\'sub\',\''+s.id+'\')" >Marcar Pago</button>':'')+'</div><div class="rec-right"><div class="rec-val">-'+R(s.amount)+'</div><div class="rec-freq">Mensal</div></div><div class="rec-actions"><button class="rec-edit" onclick="editSub(\''+s.id+'\')" >✏️ Editar</button><button class="rec-del" onclick="delSubConfirm(\''+s.id+'\')" aria-label="Excluir">✕</button></div></div>';
   }).join(''):'<div class="empty"><div class="empty-ico">💳</div><p>Nenhuma assinatura ativa</p><small>Ex: Netflix, Spotify, Academia</small></div>';
 }
 
@@ -1888,7 +1980,7 @@ function renderRecs(){
     const isPaid=(r.paidDates||[]).includes(t);const isT=r.dueDate===t;
     const isInc=r.type==='inc';
     const parc=r.totalInstallments>0?' ('+r.paidCount+'/'+r.totalInstallments+')':'';
-    return '<div class="rec-item"><div class="rec-icon" style="background:'+(isInc?'var(--green-dim)':'var(--blue-dim)')+'">'+catIco(r.cat)+'</div><div class="rec-body"><div class="rec-name">'+r.desc+(isPaid?'<span class="badge badge-blue"> ✓</span>':'')+(isT&&!isPaid?'<span class="badge badge-orange"> Hoje!</span>':'')+'</div><div class="rec-meta">Vence '+fmtD(r.dueDate)+' · '+FREQ_LBL[r.freq]+parc+'</div>'+(!isPaid?'<button class="rec-pay-btn '+(isInc?'inc-btn':'')+'" onclick="markDone(\'rec\',\''+r.id+'\')">'+(isInc?'Recebido':'Pago')+'</button>':'')+'</div><div class="rec-right"><div class="rec-val '+(isInc?'inc':'')+'">'+(isInc?'+':'-')+R(r.amount)+'</div><div class="rec-freq">'+FREQ_LBL[r.freq]+'</div></div><button class="rec-del" onclick="delRec(\''+r.id+'\')" aria-label="Excluir">✕</button></div>';
+    return '<div class="rec-item"><div class="rec-icon" style="background:var(--blue-dim)">'+catIco(r.cat)+'</div><div class="rec-body"><div class="rec-name">'+r.desc+(isPaid?'<span class="badge badge-blue"> ✓</span>':'')+(isT&&!isPaid?'<span class="badge badge-orange"> Hoje!</span>':'')+'</div><div class="rec-meta">Próx: '+fmtD(r.dueDate)+' · '+FREQ_LBL[r.freq]+parc+'</div>'+(!isPaid?'<button class="rec-pay-btn" onclick="markDone(\'rec\',\''+r.id+'\')" >Pagar</button>':'')+'</div><div class="rec-right"><div class="rec-val">-'+R(r.amount)+'</div><div class="rec-freq">'+FREQ_LBL[r.freq]+'</div></div><div class="rec-actions"><button class="rec-edit" onclick="editRecFixed(\''+r.id+'\')" >✏️ Editar</button><button class="rec-del" onclick="delRecConfirm(\''+r.id+'\')" aria-label="Excluir">✕</button></div></div>';
   }).join(''):'<div class="empty"><div class="empty-ico">🔁</div><p>Nenhum pagamento recorrente</p><small>Ex: Aluguel, Academia, Agua</small></div>';
 }
 
@@ -1905,7 +1997,7 @@ function renderDebts(){
   el.innerHTML=activeDebts.length?activeDebts.map(d=>{
     const pct=Math.round(d.paidInstallments/d.totalInstallments*100);
     const isPaid=(d.paidDates||[]).some(pd=>pd.startsWith(curKey()));
-    return '<div class="debt-item"><div class="debt-top"><div class="debt-name">'+d.name+'</div><div class="debt-total">'+R(d.totalAmount)+'</div></div><div class="debt-row"><span>Parcela mensal: '+R(d.monthlyPayment)+'</span><span>'+d.paidInstallments+'/'+d.totalInstallments+' pagas</span></div><div class="debt-row"><span>Restante: '+R(d.totalAmount-d.monthlyPayment*d.paidInstallments)+'</span><span>Vence dia '+d.dueDay+'</span></div><div class="debt-prog-wrap"><div class="debt-prog" style="width:'+pct+'%"></div></div><button class="debt-del" onclick="delDebt(\''+d.id+'\')" aria-label="Excluir">✕</button>'+(!isPaid?'<button class="debt-pay-btn" onclick="markDone(\'debt\',\''+d.id+'\')">Pagar</button>':'<button class="debt-pay-btn" style="background:var(--border2);cursor:default">Pago ✓</button>')+'</div>';
+    return '<div class="debt-item"><div class="debt-top"><div class="debt-name">'+d.name+'</div><div style="display:flex;gap:5px;align-items:center"><div class="debt-total">'+R(d.totalAmount)+'</div><button class="rec-edit" onclick="editDebtFixed(\''+d.id+'\')" >✏️</button><button class="rec-del" onclick="delDebtConfirm(\''+d.id+'\')" >✕</button></div></div><div class="debt-row"><span>Parcela: <strong>'+R(d.monthlyPayment)+'/mês</strong></span><span>'+d.paidInstallments+'/'+d.totalInstallments+' pagas</span></div><div class="debt-row"><span>Restante: '+R(d.totalAmount-d.monthlyPayment*d.paidInstallments)+'</span><span>Vence dia '+d.dueDay+'</span></div><div class="debt-prog-wrap"><div class="debt-prog" style="width:'+pct+'%"></div></div>'+(!isPaid?'<button class="debt-pay-btn" onclick="markDone(\'debt\',\''+d.id+'\')" >Pagar</button>':'<button class="debt-pay-btn" style="background:var(--border2);cursor:default">Pago ✓</button>')+'</div>';
   }).join(''):'<div class="empty"><div class="empty-ico">🏦</div><p>Nenhuma divida ativa</p><p style="color:var(--green);margin-top:4px">🎉 Parabens! Voce esta livre de dividas!</p></div>';
 }
 
