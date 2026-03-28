@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MinhaS">
 <meta name="description" content="Controle financeiro pessoal inteligente">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <link rel="manifest" href="manifest.json">
 <title>MinhaS — Finanças</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,9 +26,20 @@ const auth=getAuth(app);
 const db=getFirestore(app);
 window._fb={auth,db,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,doc,getDoc,setDoc};
 document.addEventListener('DOMContentLoaded',()=>{
+  // Timeout: if Firebase doesn't respond in 10s, show error
+  const fbTimeout=setTimeout(()=>{
+    if(document.getElementById('loadingScreen')&&!document.getElementById('loadingScreen').classList.contains('hidden')){
+      window.onFBTimeout();
+    }
+  },10000);
   onAuthStateChanged(auth,user=>{
+    clearTimeout(fbTimeout);
     if(user){window._fbUser=user;window.onFBUser(user);}
     else{window._fbUser=null;window.onFBOut();}
+  },err=>{
+    clearTimeout(fbTimeout);
+    console.error('Auth error:',err);
+    window.onFBTimeout();
   });
 });
 </script>
@@ -479,14 +491,16 @@ input:checked+.slider:before{transform:translateX(16px)}
       <svg class="google-icon" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.6 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 2.9l5.7-5.7C34.5 6.5 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.8 1.1 8 2.9l5.7-5.7C34.5 6.5 29.5 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.3 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8H6.1C9.4 35.8 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.3 5.6l6.2 5.2C37 38.1 44 33 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>
       Entrar com Google
     </button>
-    <div class="login-footer">Desenvolvido por <strong>Martins</strong> · v2.0 beta</div>
+    <div class="login-footer" id="loginFooter">Desenvolvido por <strong>Martins</strong> · v2.0 beta</div>
   </div>
 </div>
 
 <!-- LOADING -->
 <div class="loading-screen hidden" id="loadingScreen">
-  <div class="spinner"></div>
-  <div class="loading-text">Carregando seus dados...</div>
+  <div class="spinner" id="loadSpinner"></div>
+  <div class="loading-text" id="loadText">Carregando seus dados...</div>
+  <button id="loadRetryBtn" onclick="window.location.reload()" style="display:none;margin-top:16px;background:var(--blue);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">↻ Tentar novamente</button>
+  <div id="loadErrorMsg" style="display:none;margin-top:10px;font-size:11px;color:var(--text-muted);text-align:center;max-width:260px;line-height:1.5">Pode ser lentidão na conexão ou no servidor. Verifique sua internet e tente novamente.</div>
 </div>
 
 <!-- SETUP -->
@@ -935,22 +949,52 @@ function rmT(id){const el=document.getElementById(id);if(!el)return;el.classList
 window.onFBUser=async function(user){uid=user.uid;showLoad();await loadData(user);hideLoad();};
 window.onFBOut=function(){uid=null;profile=null;txs=[];subs=[];recs=[];debts=[];cards=[];accounts=[];document.getElementById('loginScreen').classList.remove('hidden');document.getElementById('mainArea').classList.remove('show');};
 
-function showLoad(){document.getElementById('loginScreen').classList.add('hidden');document.getElementById('loadingScreen').classList.remove('hidden');document.getElementById('setupScreen').classList.remove('show');document.getElementById('mainArea').classList.remove('show');}
+function showLoad(){
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('loadingScreen').classList.remove('hidden');
+  document.getElementById('setupScreen').classList.remove('show');
+  document.getElementById('mainArea').classList.remove('show');
+  // Reset error state
+  document.getElementById('loadSpinner').style.display='block';
+  document.getElementById('loadText').textContent='Carregando seus dados...';
+  document.getElementById('loadRetryBtn').style.display='none';
+  document.getElementById('loadErrorMsg').style.display='none';
+}
 function hideLoad(){document.getElementById('loadingScreen').classList.add('hidden');}
+window.onFBTimeout=function(){
+  // Show error state in loading screen
+  const ls=document.getElementById('loadingScreen');
+  if(ls&&!ls.classList.contains('hidden')){
+    document.getElementById('loadSpinner').style.display='none';
+    document.getElementById('loadText').textContent='Tempo de conexão esgotado';
+    document.getElementById('loadRetryBtn').style.display='block';
+    document.getElementById('loadErrorMsg').style.display='block';
+  }
+};
 
 async function loadData(user){
   const fb=window._fb;
-  const snap=await fb.getDoc(fb.doc(fb.db,'users',uid));
-  if(!snap.exists()){
-    document.getElementById('setupHint').textContent='Logado como '+user.email;
-    document.getElementById('setupName').value=(user.displayName||'').split(' ')[0];
-    document.getElementById('setupScreen').classList.add('show');
-    return;
+  try{
+    const snap=await fb.getDoc(fb.doc(fb.db,'users',uid));
+    if(!snap.exists()){
+      hideLoad();
+      document.getElementById('setupHint').textContent='Logado como '+user.email;
+      document.getElementById('setupName').value=(user.displayName||'').split(' ')[0];
+      document.getElementById('setupScreen').classList.add('show');
+      return;
+    }
+    const d=snap.data();
+    profile=d.profile||{name:user.displayName||'Usuario',avatar:'😊',since:todayStr(),email:user.email};
+    txs=d.txs||[]; subs=d.subs||[]; recs=d.recs||[]; debts=d.debts||[]; accounts=d.accounts||[];
+    launchApp(user);
+  }catch(err){
+    console.error('Erro ao carregar dados:',err);
+    hideLoad();
+    // Show retry on login screen
+    document.getElementById('loginScreen').classList.remove('hidden');
+    const ft=document.getElementById('loginFooter');
+    if(ft)ft.innerHTML='<span style="color:var(--red)">Erro ao conectar. Verifique sua internet.</span><br><button onclick="window.location.reload()" style="margin-top:8px;background:var(--blue);color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer">↻ Tentar novamente</button>';
   }
-  const d=snap.data();
-  profile=d.profile||{name:user.displayName||'Usuario',avatar:'😊',since:todayStr(),email:user.email};
-  txs=d.txs||[]; subs=d.subs||[]; recs=d.recs||[]; debts=d.debts||[]; accounts=d.accounts||[];
-  launchApp(user);
 }
 
 async function saveCloud(){
@@ -1400,29 +1444,30 @@ function closeSubPage(){
 
 // ══ PROJECTED INCOME (from recurring recs with type=inc) ══
 // ══ PROJECTION ENGINE ══
-// Finds all recs (income AND expense) that fall on a given monthKey
+// Finds all recs (income AND expense) that fall on a given monthKey ('YYYY-MM')
 function getProjectedRecs(monthKey){
   const proj=[];
-  const[tY,tM]=monthKey.split('-').map(Number); // tM is 1-indexed
 
   for(const r of recs){
+    // Skip 'once' frequency — no future occurrences
+    if(r.freq==='once') continue;
     // Skip if all installments done
     if(r.totalInstallments>0&&(r.paidCount||0)>=r.totalInstallments) continue;
-    // Skip if already has a real confirmed tx in this month from this rec
-    const hasReal=txs.some(t=>t.recId===r.id&&t.month===monthKey);
-    if(hasReal) continue;
+    // Skip if already has a confirmed tx in this month from this rec
+    if(txs.some(t=>t.recId===r.id&&t.month===monthKey)) continue;
 
-    // Walk forward from dueDate until we find this month or pass it
+    // Generate dates from dueDate forward until we hit or pass the target month
     let d=r.dueDate;
-    let safety=0;
-    while(d&&safety<120){
-      safety++;
-      const[dy,dm]=d.split('-').map(Number); // dm is 1-indexed
-      const dKey=mk(dy,dm-1); // mk uses 0-indexed month
+    for(let i=0;i<60;i++){
+      if(!d) break;
+      // Get the month key for this date
+      const parts=d.split('-');
+      const dy=parseInt(parts[0]);
+      const dm=parseInt(parts[1]); // 1-indexed
+      const dKey=dy+'-'+parts[1];  // e.g. '2026-04'
 
       if(dKey===monthKey){
-        // This rec falls in the target month
-        const isInc=r.type==='inc';
+        // Found — this rec falls in the target month
         proj.push({
           ...r,
           id:'proj_'+r.id+'_'+monthKey,
@@ -1431,16 +1476,17 @@ function getProjectedRecs(monthKey){
           date:d,
           month:monthKey,
           type:r.type||'exp',
-          status:isInc?'pendente':'a_pagar'
+          status:r.type==='inc'?'pendente':'a_pagar'
         });
         break;
       }
 
-      // If dueDate is already past the target month, stop searching
-      if(dy>tY||(dy===tY&&dm>tM)) break;
+      // If we've gone past the target month, stop
+      if(dKey>monthKey) break;
 
+      // Advance to next occurrence
       const nd=nextDueDate(d,r.freq);
-      if(!nd||nd===d) break; // no next date (once) or stuck
+      if(!nd||nd<=d) break;
       d=nd;
     }
   }
@@ -1500,15 +1546,23 @@ function render(){
 
 function renderDashboard(){
   const key=curKey();
-  const month=txs.filter(t=>!t.future&&t.month===key);
-  const inc=month.filter(t=>t.type==='inc').reduce((s,t)=>s+t.amount,0);
-  const exp=month.filter(t=>t.type==='exp').reduce((s,t)=>s+t.amount,0);
+  const month=txs.filter(t=>t.month===key);
 
+  // Get projected recs for this month (income + expense)
+  const proj=getProjectedRecs(key);
+  const projI=proj.filter(t=>t.type==='inc').reduce((s,t)=>s+t.amount,0);
+  const projE=proj.filter(t=>t.type==='exp').reduce((s,t)=>s+t.amount,0);
+
+  const incReal=month.filter(t=>t.type==='inc').reduce((s,t)=>s+t.amount,0);
+  const expReal=month.filter(t=>t.type==='exp').reduce((s,t)=>s+t.amount,0);
+  const inc=incReal+projI;
+  const exp=expReal+projE;
   const bal=inc-exp;
+
   document.getElementById('dInc').textContent=R(inc);
-  document.getElementById('dIncSub').textContent=month.filter(t=>t.type==='inc').length+' lancamentos';
-  document.getElementById('dExp').textContent=R(exp+projExpTotal);
-  document.getElementById('dExpSub').textContent=month.filter(t=>t.type==='exp').length+' lancamentos';
+  document.getElementById('dIncSub').textContent=month.filter(t=>t.type==='inc').length+' confirmados'+(proj.filter(t=>t.type==='inc').length?' + '+proj.filter(t=>t.type==='inc').length+' previstos':'');
+  document.getElementById('dExp').textContent=R(exp);
+  document.getElementById('dExpSub').textContent=month.filter(t=>t.type==='exp').length+' confirmados'+(proj.filter(t=>t.type==='exp').length?' + '+proj.filter(t=>t.type==='exp').length+' previstos':'');
   const balEl=document.getElementById('dBal');balEl.textContent=R(bal);balEl.className='dc-value '+(bal>=0?'blue':'red');
   // next vencimentos
   const t=todayStr();
@@ -1530,13 +1584,13 @@ function renderDashboard(){
     const typeTag=isInc?'<span style="font-size:9px;background:var(--green-dim);color:var(--green);border-radius:4px;padding:1px 5px;margin-left:4px">REC</span>':'<span style="font-size:9px;background:var(--red-dim);color:var(--red);border-radius:4px;padding:1px 5px;margin-left:4px">EXP</span>';
     return '<div class="next-rec-item"><div class="nri-icon" style="background:'+(isInc?'var(--green-dim)':'var(--orange-dim)')+'">'+catIco(u.cat)+'</div><div class="nri-body"><div class="nri-name">'+u.name+typeTag+'</div><div class="nri-date" style="color:'+urg+'">'+fmtD(u.dueDate)+' '+dayTxt+'</div></div><div class="nri-val" style="color:'+(isInc?'var(--green)':'var(--red)')+'">'+(isInc?'+':'-')+R(u.amount)+'</div></div>';
   }).join('');
-  // last txs
+  // last txs — include projected items
   const dashTxEl=document.getElementById('dashTxList');
-  const last=month.slice(0,6);
-  dashTxEl.innerHTML=last.length?last.map(t=>txItemHTML(t)).join(''):'<div class="empty"><div class="empty-ico">📭</div><p>Nenhuma transacao este mes</p><small>Vá em Lancamentos para adicionar</small></div>';
-  document.getElementById('dashTxCount').textContent=month.length+' registros';
+  const allItems=[...month,...proj].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,8);
+  dashTxEl.innerHTML=allItems.length?allItems.map(t=>txItemHTML(t)).join(''):'<div class="empty"><div class="empty-ico">📭</div><p>Nenhuma transacao este mes</p><small>Vá em Lancamentos para adicionar</small></div>';
+  document.getElementById('dashTxCount').textContent=(month.length+proj.length)+' registros';
   // cat breakdown
-  renderCatBreakdown('dashCatList',month,exp);
+  renderCatBreakdown('dashCatList',[...month,...proj],exp);
 }
 
 function renderCatBreakdown(id,list,total){
