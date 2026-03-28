@@ -1242,28 +1242,25 @@ function filterTxs(){txSearch=document.getElementById('searchTx').value.toLowerC
 function setTxFilter(btn){document.querySelectorAll('.fchip').forEach(b=>b.classList.remove('active'));btn.classList.add('active');txFilter=btn.dataset.f;renderTxList();}
 function renderTxList(){
   const key=curKey();
-  let list=txs.filter(t=>t.month===key);
-  // also add projected recurring income for this month
-  const projInc=getProjectedInc(key);
-  const combined=[...list,...projInc];
-  if(txSearch){const q=txSearch;list=combined.filter(t=>(t.desc||'').toLowerCase().includes(q)||t.cat.toLowerCase().includes(q));}
-  else{list=combined;}
+  const real=txs.filter(t=>t.month===key);
+  const proj=getProjectedRecs(key);
+  let list=[...real,...proj];
+  if(txSearch){const q=txSearch.toLowerCase();list=list.filter(t=>(t.desc||'').toLowerCase().includes(q)||t.cat.toLowerCase().includes(q));}
   if(txFilter!=='all'){
     if(txFilter==='inc'||txFilter==='exp')list=list.filter(t=>t.type===txFilter);
-    else if(txFilter==='pendente')list=list.filter(t=>t.status==='pendente'||t._projected);
+    else if(txFilter==='pendente')list=list.filter(t=>t._projected||t.status==='pendente'||t.status==='a_pagar');
   }
   list.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   document.getElementById('txListCount').textContent=list.length+' registros';
   const el=document.getElementById('txList');
   el.innerHTML=list.length?list.map(t=>txItemHTML(t)).join(''):'<div class="empty"><div class="empty-ico">📭</div><p>Nenhuma transacao este mes</p></div>';
-  // summary bar (real + projected)
-  const real=txs.filter(t=>t.month===key);
-  const inc=real.filter(t=>t.type==='inc').reduce((s,t)=>s+t.amount,0);
-  const exp=real.filter(t=>t.type==='exp').reduce((s,t)=>s+t.amount,0);
-  const projIncTotal=projInc.reduce((s,t)=>s+t.amount,0);
-  document.getElementById('sbInc').textContent=Rsh(inc+projIncTotal);
-  document.getElementById('sbExp').textContent=Rsh(exp);
-  document.getElementById('sbBal').textContent=Rsh(inc+projIncTotal-exp);
+  const incReal=real.filter(t=>t.type==='inc').reduce((s,t)=>s+t.amount,0);
+  const expReal=real.filter(t=>t.type==='exp').reduce((s,t)=>s+t.amount,0);
+  const projI=proj.filter(t=>t.type==='inc').reduce((s,t)=>s+t.amount,0);
+  const projE=proj.filter(t=>t.type==='exp').reduce((s,t)=>s+t.amount,0);
+  document.getElementById('sbInc').textContent=Rsh(incReal+projI);
+  document.getElementById('sbExp').textContent=Rsh(expReal+projE);
+  document.getElementById('sbBal').textContent=Rsh(incReal+projI-expReal-projE);
 }
 function txItemHTML(t){
   const ico=catIco(t.cat);
@@ -1279,7 +1276,7 @@ function txItemHTML(t){
   const recBadge=t.recId&&!isProj?'<span class="badge badge-blue">🔁</span>':'';
   const payInfo=t.payMethod&&t.type!=='inc'?'<div class="tx-pay-badge">'+(PAY_ICO[t.payMethod]||'')+' '+(PAY_LBL[t.payMethod]||'')+'</div>':'';
   const recvBtn=isPending&&!isProj?'<button style="background:var(--green);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;margin-left:4px" onclick="markReceived(\''+t.id+'\')" >Receber</button>':'';
-  const projBtn=isProj?'<button style="background:var(--green);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="confirmProjInc(\''+t._recId+'\',\''+t.date+'\')" >Receber</button>':'';
+  const isInc=t.type==='inc';const projBtn=isProj?(isInc?'<button style="background:var(--green);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="confirmProj(\''+(t._recId||'')+'\',\''+(t.date||'')+'\',\'inc\')" >Receber ✓</button>':'<button style="background:var(--orange);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="confirmProj(\''+(t._recId||'')+'\',\''+(t.date||'')+'\',\'exp\')" >Pagar ✓</button>'):'';
   const delBtn=isProj?'':`<button class="tx-del" onclick="delTx('${t.id}')" aria-label="Excluir">✕</button>`;
   return '<div class="tx-item" style="'+itemStyle+'"><div class="tx-icon" style="'+bg+'">'+ico+'</div><div class="tx-body"><div class="tx-desc">'+(t.desc||t.cat)+projBadge+pendBadge+recBadge+'</div><div class="tx-meta">'+t.cat+' · '+ds+'</div></div><div class="tx-right"><div class="tx-amount '+(t.type==='inc'?'inc':'exp')+'">'+sign+R(t.amount)+'</div>'+payInfo+recvBtn+projBtn+'</div>'+delBtn+'</div>';
 }
@@ -1402,48 +1399,88 @@ function closeSubPage(){
 }
 
 // ══ PROJECTED INCOME (from recurring recs with type=inc) ══
-function getProjectedInc(monthKey){
-  const today=todayStr();
+// ══ PROJECTION ENGINE ══
+// Finds all recs (income AND expense) that fall on a given monthKey
+function getProjectedRecs(monthKey){
   const proj=[];
-  const[my,mm]=monthKey.split('-').map(Number);
+  const[tY,tM]=monthKey.split('-').map(Number); // tM is 1-indexed
+
   for(const r of recs){
-    if(r.type!=='inc') continue;
-    if(r.totalInstallments>0&&r.paidCount>=r.totalInstallments) continue;
-    // check if already has a real tx for this month from this rec
+    // Skip if all installments done
+    if(r.totalInstallments>0&&(r.paidCount||0)>=r.totalInstallments) continue;
+    // Skip if already has a real confirmed tx in this month from this rec
     const hasReal=txs.some(t=>t.recId===r.id&&t.month===monthKey);
     if(hasReal) continue;
-    // check if this rec is due in this month
+
+    // Walk forward from dueDate until we find this month or pass it
     let d=r.dueDate;
-    let count=0;
-    while(d&&count<60){
-      const[dy,dm]=d.split('-').map(Number);
-      if(mk(dy,dm-1)===monthKey){
-        proj.push({...r,id:'proj_'+r.id+'_'+monthKey,_projected:true,_recId:r.id,date:d,month:monthKey,type:'inc',status:'pendente'});
+    let safety=0;
+    while(d&&safety<120){
+      safety++;
+      const[dy,dm]=d.split('-').map(Number); // dm is 1-indexed
+      const dKey=mk(dy,dm-1); // mk uses 0-indexed month
+
+      if(dKey===monthKey){
+        // This rec falls in the target month
+        const isInc=r.type==='inc';
+        proj.push({
+          ...r,
+          id:'proj_'+r.id+'_'+monthKey,
+          _projected:true,
+          _recId:r.id,
+          date:d,
+          month:monthKey,
+          type:r.type||'exp',
+          status:isInc?'pendente':'a_pagar'
+        });
         break;
       }
-      // advance to next occurrence
+
+      // If dueDate is already past the target month, stop searching
+      if(dy>tY||(dy===tY&&dm>tM)) break;
+
       const nd=nextDueDate(d,r.freq);
-      if(!nd||nd<=d) break;
-      d=nd; count++;
+      if(!nd||nd===d) break; // no next date (once) or stuck
+      d=nd;
     }
   }
   return proj;
 }
-function confirmProjInc(recId,date){
+
+// Confirm a projected rec (both income and expense)
+function confirmProj(recId,date,type){
   const r=recs.find(x=>x.id===recId);if(!r)return;
   const[y,m]=date.split('-').map(Number);
-  if(!r.paidDates)r.paidDates=[];r.paidDates.push(date);
+  const isInc=type==='inc';
+  if(!r.paidDates)r.paidDates=[];
+  r.paidDates.push(date);
   r.paidCount=(r.paidCount||0)+1;
-  const tx={id:'tx'+Date.now(),desc:r.desc,amount:r.amount,date,cat:r.cat,type:'inc',
-    payMethod:null,month:mk(y,m-1),recId,accId:r.accId||null,status:'recebido'};
+  const tx={
+    id:'tx'+Date.now(),desc:r.desc,amount:r.amount,date,cat:r.cat,
+    type:r.type||'exp',payMethod:isInc?null:'pix',
+    month:mk(y,m-1),recId,accId:r.accId||null,
+    status:isInc?'recebido':'paid'
+  };
   txs.unshift(tx);
-  if(r.accId){const a=accounts.find(x=>x.id===r.accId);if(a)a.balance+=r.amount;}
-  // advance dueDate
-  const nd=nextDueDate(r.dueDate,r.freq);
+  if(r.accId){
+    const a=accounts.find(x=>x.id===r.accId);
+    if(a){if(isInc)a.balance+=r.amount; else a.balance-=r.amount;}
+  }
+  // Advance dueDate to next occurrence
+  const nd=nextDueDate(date,r.freq);
   if(nd)r.dueDate=nd;
-  if(r.totalInstallments>0&&r.paidCount>=r.totalInstallments){recs=recs.filter(x=>x.id!==recId);}
-  saveAll();render();toast('s','Recebido!',r.desc+' · '+R(r.amount));
+  // Auto-remove if all installments done
+  if(r.totalInstallments>0&&r.paidCount>=r.totalInstallments){
+    recs=recs.filter(x=>x.id!==recId);
+    toast('s','Concluido!',r.desc+' — todas as parcelas '+(isInc?'recebidas':'pagas')+'.');
+  } else {
+    const rem=r.totalInstallments>0?' ('+(r.totalInstallments-r.paidCount)+' restantes)':'';
+    toast('s',isInc?'Recebido!':'Pago!',r.desc+rem);
+  }
+  saveAll();render();
 }
+
+// Mark a pending income tx (already created but not yet received)
 function markReceived(txId){
   const tx=txs.find(t=>t.id===txId);if(!tx)return;
   tx.status='recebido';
@@ -1470,24 +1507,28 @@ function renderDashboard(){
   const bal=inc-exp;
   document.getElementById('dInc').textContent=R(inc);
   document.getElementById('dIncSub').textContent=month.filter(t=>t.type==='inc').length+' lancamentos';
-  document.getElementById('dExp').textContent=R(exp);
+  document.getElementById('dExp').textContent=R(exp+projExpTotal);
   document.getElementById('dExpSub').textContent=month.filter(t=>t.type==='exp').length+' lancamentos';
   const balEl=document.getElementById('dBal');balEl.textContent=R(bal);balEl.className='dc-value '+(bal>=0?'blue':'red');
   // next vencimentos
   const t=todayStr();
   const upcoming=[
-    ...subs.map(s=>({name:s.name,amount:s.amount,dueDate:todayStr().slice(0,8)+String(s.dueDay).padStart(2,'0'),cat:s.cat||'Assinaturas',type:'exp'})),
-    ...recs.filter(r=>r.dueDate>=t).map(r=>({name:r.desc,amount:r.amount,dueDate:r.dueDate,cat:r.cat,type:r.type||'exp'})),
-    ...debts.filter(d=>d.paidInstallments<d.totalInstallments).map(d=>({name:d.name,amount:d.monthlyPayment,dueDate:todayStr().slice(0,8)+String(d.dueDay).padStart(2,'0'),cat:'Contas',type:'exp'}))
-  ].sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).slice(0,3);
+    ...subs.map(s=>({name:s.name,amount:s.amount,dueDate:curKey()+'-'+String(s.dueDay).padStart(2,'0'),cat:s.cat||'Assinaturas',type:'exp'})),
+    ...recs.filter(r=>r.dueDate>=t&&!(r.totalInstallments>0&&(r.paidCount||0)>=r.totalInstallments))
+           .map(r=>({name:r.desc,amount:r.amount,dueDate:r.dueDate,cat:r.cat,type:r.type||'exp'})),
+    ...debts.filter(d=>d.paidInstallments<d.totalInstallments)
+            .map(d=>({name:d.name,amount:d.monthlyPayment,dueDate:curKey()+'-'+String(d.dueDay).padStart(2,'0'),cat:'Contas',type:'exp'}))
+  ].sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).slice(0,5);
   const nrt=document.getElementById('nextRecTitle');
   const nrl=document.getElementById('nextRecList');
   nrt.style.display=upcoming.length?'flex':'none';
   nrl.innerHTML=upcoming.map(u=>{
     const daysLeft=Math.ceil((new Date(u.dueDate+'T12:00:00')-new Date())/(1000*60*60*24));
-    const urg=daysLeft<=3?'var(--red)':daysLeft<=7?'var(--orange)':'var(--text-muted)';
+    const urg=daysLeft<=0?'var(--red)':daysLeft<=3?'var(--red)':daysLeft<=7?'var(--orange)':'var(--text-muted)';
     const isInc=u.type==='inc';
-    return '<div class="next-rec-item"><div class="nri-icon" style="background:'+(isInc?'var(--green-dim)':'var(--orange-dim)')+'">'+catIco(u.cat)+'</div><div class="nri-body"><div class="nri-name">'+u.name+'</div><div class="nri-date" style="color:'+urg+'">'+fmtD(u.dueDate)+(daysLeft===0?' — Hoje!':(daysLeft===1?' — Amanha':' — '+daysLeft+' dias'))+'</div></div><div class="nri-val" style="color:'+(isInc?'var(--green)':'var(--red)')+'">'+R(u.amount)+'</div></div>';
+    const dayTxt=daysLeft<0?'Vencido há '+Math.abs(daysLeft)+'d':daysLeft===0?'— Hoje!':daysLeft===1?'— Amanhã':'— '+daysLeft+' dias';
+    const typeTag=isInc?'<span style="font-size:9px;background:var(--green-dim);color:var(--green);border-radius:4px;padding:1px 5px;margin-left:4px">REC</span>':'<span style="font-size:9px;background:var(--red-dim);color:var(--red);border-radius:4px;padding:1px 5px;margin-left:4px">EXP</span>';
+    return '<div class="next-rec-item"><div class="nri-icon" style="background:'+(isInc?'var(--green-dim)':'var(--orange-dim)')+'">'+catIco(u.cat)+'</div><div class="nri-body"><div class="nri-name">'+u.name+typeTag+'</div><div class="nri-date" style="color:'+urg+'">'+fmtD(u.dueDate)+' '+dayTxt+'</div></div><div class="nri-val" style="color:'+(isInc?'var(--green)':'var(--red)')+'">'+(isInc?'+':'-')+R(u.amount)+'</div></div>';
   }).join('');
   // last txs
   const dashTxEl=document.getElementById('dashTxList');
