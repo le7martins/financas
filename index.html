@@ -615,7 +615,7 @@ input:checked+.slider:before{transform:translateX(16px)}
         <div class="dash-card">
           <div class="dc-body">
             <div class="dc-label">Receitas</div>
-            <div class="dc-value green" id="dInc">R$ 0,00</div>
+            <div class="dc-value green" id="dInc">0,00</div>
             <div class="dc-sub" id="dIncSub">0 lançamentos</div>
           </div>
           <div class="dc-icon green">↗</div>
@@ -623,7 +623,7 @@ input:checked+.slider:before{transform:translateX(16px)}
         <div class="dash-card">
           <div class="dc-body">
             <div class="dc-label">Despesas</div>
-            <div class="dc-value red" id="dExp">R$ 0,00</div>
+            <div class="dc-value red" id="dExp">0,00</div>
             <div class="dc-sub" id="dExpSub">0 lançamentos</div>
           </div>
           <div class="dc-icon red">↘</div>
@@ -631,7 +631,7 @@ input:checked+.slider:before{transform:translateX(16px)}
         <div class="dash-card">
           <div class="dc-body">
             <div class="dc-label">Saldo do Mês</div>
-            <div class="dc-value blue" id="dBal">R$ 0,00</div>
+            <div class="dc-value blue" id="dBal">0,00</div>
             <div class="dc-sub">receitas − despesas</div>
           </div>
           <div class="dc-icon blue">💰</div>
@@ -737,9 +737,9 @@ input:checked+.slider:before{transform:translateX(16px)}
 
       <!-- SUMMARY BAR -->
       <div class="summary-bar">
-        <div class="sb-item"><div class="sb-label"><span class="sb-icon">↗</span>RECEITAS</div><div class="sb-val g" id="sbInc">R$ 0</div></div>
-        <div class="sb-item"><div class="sb-label"><span class="sb-icon">↘</span>DESPESAS</div><div class="sb-val r" id="sbExp">R$ 0</div></div>
-        <div class="sb-item"><div class="sb-label"><span class="sb-icon">💰</span>SALDO</div><div class="sb-val b" id="sbBal">R$ 0</div></div>
+        <div class="sb-item"><div class="sb-label"><span class="sb-icon">↗</span>RECEITAS</div><div class="sb-val g" id="sbInc">0</div></div>
+        <div class="sb-item"><div class="sb-label"><span class="sb-icon">↘</span>DESPESAS</div><div class="sb-val r" id="sbExp">0</div></div>
+        <div class="sb-item"><div class="sb-label"><span class="sb-icon">💰</span>SALDO</div><div class="sb-val b" id="sbBal">0</div></div>
       </div>
 
       <!-- TX LIST or FUTURE LIST -->
@@ -762,24 +762,24 @@ input:checked+.slider:before{transform:translateX(16px)}
       <div id="gfMain">
         <div class="gf-total">
           <div class="gf-total-icon">📅</div>
-          <div><div class="gf-total-label">Total Gastos Fixos Mensais</div><div class="gf-total-val" id="gfTotal">R$ 0,00</div></div>
+          <div><div class="gf-total-label">Total Gastos Fixos Mensais</div><div class="gf-total-val" id="gfTotal">0,00</div></div>
         </div>
         <div class="gf-row" onclick="openSubPage('assinaturas')">
           <div class="gf-row-icon" style="background:var(--blue-dim);color:var(--blue)">💳</div>
           <div class="gf-row-body"><div class="gf-row-name">Assinaturas</div><div class="gf-row-sub" id="gfSubCount">0 ativas</div></div>
-          <div class="gf-row-val blue" id="gfSubTotal">R$ 0,00</div>
+          <div class="gf-row-val blue" id="gfSubTotal">0,00</div>
           <span class="gf-row-arr">›</span>
         </div>
         <div class="gf-row" onclick="openSubPage('recorrentes')">
           <div class="gf-row-icon" style="background:var(--teal-dim);color:var(--teal)">🔁</div>
           <div class="gf-row-body"><div class="gf-row-name">Pagamentos Recorrentes</div><div class="gf-row-sub" id="gfRecCount">0 ativos</div></div>
-          <div class="gf-row-val" style="color:var(--teal)" id="gfRecTotal">R$ 0,00</div>
+          <div class="gf-row-val" style="color:var(--teal)" id="gfRecTotal">0,00</div>
           <span class="gf-row-arr">›</span>
         </div>
         <div class="gf-row" onclick="openSubPage('dividas')">
           <div class="gf-row-icon" style="background:var(--orange-dim);color:var(--orange)">🏦</div>
           <div class="gf-row-body"><div class="gf-row-name">Dívidas (Parcela Mensal)</div><div class="gf-row-sub" id="gfDebtCount">0 ativas</div></div>
-          <div class="gf-row-val" style="color:var(--orange)" id="gfDebtTotal">R$ 0,00</div>
+          <div class="gf-row-val" style="color:var(--orange)" id="gfDebtTotal">0,00</div>
           <span class="gf-row-arr">›</span>
         </div>
       </div>
@@ -794,8 +794,8 @@ input:checked+.slider:before{transform:translateX(16px)}
         <div class="stats-grid">
           <div class="stat-box"><div class="stat-box-label">Assinaturas Ativas</div><div class="stat-box-val" id="subActiveCount">0</div></div>
           <div class="stat-box"><div class="stat-box-label">Pagas este mês</div><div class="stat-box-val green" id="subPaidCount">0/0</div></div>
-          <div class="stat-box"><div class="stat-box-label">Gasto Mensal</div><div class="stat-box-val blue" id="subMonthly">R$ 0,00</div></div>
-          <div class="stat-box"><div class="stat-box-label">Anual Estimado</div><div class="stat-box-val" id="subAnnual">R$ 0,00</div></div>
+          <div class="stat-box"><div class="stat-box-label">Gasto Mensal</div><div class="stat-box-val blue" id="subMonthly">0,00</div></div>
+          <div class="stat-box"><div class="stat-box-label">Anual Estimado</div><div class="stat-box-val" id="subAnnual">0,00</div></div>
         </div>
         <div class="sec-title">Assinaturas Ativas</div>
         <div id="subList"></div>
@@ -811,8 +811,8 @@ input:checked+.slider:before{transform:translateX(16px)}
         <div class="stats-grid">
           <div class="stat-box"><div class="stat-box-label">Pagamentos Ativos</div><div class="stat-box-val" id="recActiveCount">0</div></div>
           <div class="stat-box"><div class="stat-box-label">Pagos este mês</div><div class="stat-box-val green" id="recPaidCount">0/0</div></div>
-          <div class="stat-box"><div class="stat-box-label">Total Mensal</div><div class="stat-box-val blue" id="recMonthly">R$ 0,00</div></div>
-          <div class="stat-box"><div class="stat-box-label">Anual Estimado</div><div class="stat-box-val" id="recAnnual">R$ 0,00</div></div>
+          <div class="stat-box"><div class="stat-box-label">Total Mensal</div><div class="stat-box-val blue" id="recMonthly">0,00</div></div>
+          <div class="stat-box"><div class="stat-box-label">Anual Estimado</div><div class="stat-box-val" id="recAnnual">0,00</div></div>
         </div>
         <div class="sec-title">Pagamentos Ativos</div>
         <div id="recList"></div>
@@ -826,8 +826,8 @@ input:checked+.slider:before{transform:translateX(16px)}
           <button class="btn-blue" style="margin-left:auto" onclick="openAddDebt()">+ Nova</button>
         </div>
         <div class="stats-grid">
-          <div class="stat-box"><div class="stat-box-label">Total de Dívidas</div><div class="stat-box-val red" id="debtTotal">R$ 0,00</div></div>
-          <div class="stat-box"><div class="stat-box-label">Parcela Mensal</div><div class="stat-box-val orange" id="debtMonthly">R$ 0,00</div></div>
+          <div class="stat-box"><div class="stat-box-label">Total de Dívidas</div><div class="stat-box-val red" id="debtTotal">0,00</div></div>
+          <div class="stat-box"><div class="stat-box-label">Parcela Mensal</div><div class="stat-box-val orange" id="debtMonthly">0,00</div></div>
           <div class="stat-box"><div class="stat-box-label">Pagas este mês</div><div class="stat-box-val green" id="debtPaid">0/0</div></div>
           <div class="stat-box"><div class="stat-box-label">Quitadas</div><div class="stat-box-val" id="debtDone">0</div></div>
         </div>
@@ -850,9 +850,9 @@ input:checked+.slider:before{transform:translateX(16px)}
           <div class="chart-card-title">📊 Evolução Receitas vs Despesas (6 meses)</div>
           <div class="chart-wrap"><canvas id="barChart"></canvas></div>
           <div class="rep-sum">
-            <div class="rep-sum-card g"><div class="rep-sum-label">Total Receitas</div><div class="rep-sum-val g" id="repInc">R$ 0,00</div></div>
-            <div class="rep-sum-card r"><div class="rep-sum-label">Total Despesas</div><div class="rep-sum-val r" id="repExp">R$ 0,00</div></div>
-            <div class="rep-sum-card b"><div class="rep-sum-label">Saldo Período</div><div class="rep-sum-val b" id="repBal">R$ 0,00</div></div>
+            <div class="rep-sum-card g"><div class="rep-sum-label">Total Receitas</div><div class="rep-sum-val g" id="repInc">0,00</div></div>
+            <div class="rep-sum-card r"><div class="rep-sum-label">Total Despesas</div><div class="rep-sum-val r" id="repExp">0,00</div></div>
+            <div class="rep-sum-card b"><div class="rep-sum-label">Saldo Período</div><div class="rep-sum-val b" id="repBal">0,00</div></div>
           </div>
         </div>
         <div class="chart-card">
@@ -968,8 +968,9 @@ let uid=null, charts_={};
 let dPr=null;
 
 // ══ UTILS ══
-function R(v){return 'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
-function Rsh(v){if(Math.abs(v)>=1000)return 'R$ '+(Math.abs(v)/1000).toFixed(1)+'k';return R(v);}
+function R(v){return Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function Rsh(v){if(Math.abs(v)>=1000)return (Math.abs(v)/1000).toFixed(1)+'k';return R(v);}
+function N(v){return Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function mk(y,m){return y+'-'+String(m+1).padStart(2,'0');}
 function curKey(){return mk(curY,curM);}
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -1493,7 +1494,7 @@ function openAddDebt(){
     '<div class="field-wrap"><div class="field-label">Total da dívida</div><div class="amount-field-wrap"><span class="amount-prefix">R$</span><input class="field amount-field" id="mDT" type="text" inputmode="decimal" placeholder="0,00" oninput="previewInstallment()" style="margin-bottom:0"></div></div>'+
     '<div class="field-wrap"><div class="field-label">Total de parcelas</div><input class="field" id="mDQT" type="number" inputmode="numeric" placeholder="24" min="1" oninput="previewInstallment()" style="margin-bottom:0"></div>'+
     '</div>'+
-    '<div id="debtPreview" style="padding:8px 10px;background:var(--blue-dim);border-radius:6px;font-size:12px;color:var(--blue-bright);margin-bottom:9px;display:none">💡 Parcela mensal: <strong id="debtPreviewVal">R$ 0,00</strong></div>'+
+    '<div id="debtPreview" style="padding:8px 10px;background:var(--blue-dim);border-radius:6px;font-size:12px;color:var(--blue-bright);margin-bottom:9px;display:none">💡 Parcela mensal: <strong id="debtPreviewVal">0,00</strong></div>'+
     '<div style="display:flex;gap:8px;margin-bottom:9px">'+
     '<div class="field-wrap"><div class="field-label">Parcelas já pagas</div><input class="field" id="mDQP" type="number" inputmode="numeric" placeholder="0" min="0" style="margin-bottom:0" value="0"></div>'+
     '<div class="field-wrap"><div class="field-label">Dia vencimento</div><input class="field" id="mDD" type="number" inputmode="numeric" placeholder="10" min="1" max="31" style="margin-bottom:0"></div>'+
@@ -1868,11 +1869,11 @@ function renderDashboard(){
   const exp=expReal+projE;
   const bal=inc-exp;
 
-  document.getElementById('dInc').textContent='+'+R(inc);
+  document.getElementById('dInc').textContent='+'+N(inc);
   document.getElementById('dIncSub').textContent=month.filter(t=>t.type==='inc').length+' confirmados'+(proj.filter(t=>t.type==='inc').length?' + '+proj.filter(t=>t.type==='inc').length+' previstos':'');
-  document.getElementById('dExp').textContent='-'+R(exp);
+  document.getElementById('dExp').textContent='-'+N(exp);
   document.getElementById('dExpSub').textContent=month.filter(t=>t.type==='exp').length+' confirmados'+(proj.filter(t=>t.type==='exp').length?' + '+proj.filter(t=>t.type==='exp').length+' previstos':'');
-  const balEl=document.getElementById('dBal');balEl.textContent=(bal<0?'-':'')+R(bal);balEl.className='dc-value '+(bal>=0?'blue':'red');
+  const balEl=document.getElementById('dBal');balEl.textContent=(bal<0?'-':'')+N(bal);balEl.className='dc-value '+(bal>=0?'blue':'red');
   // next vencimentos
   const t=todayStr();
   // Calculate next due date for a dueDay (day of month)
@@ -2170,7 +2171,7 @@ function renderCharts(){
   document.getElementById('repInc').textContent=R(pInc);
   document.getElementById('repExp').textContent=R(pExp);
   document.getElementById('repBal').textContent=R(pInc-pExp);
-  const df={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#64748b',font:{family:'Inter',size:11}}}},scales:{x:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'#1e3a5f'}},y:{ticks:{color:'#64748b',callback:v=>'R$'+v.toLocaleString('pt-BR'),font:{size:10}},grid:{color:'#1e3a5f'}}}};
+  const df={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#64748b',font:{family:'Inter',size:11}}}},scales:{x:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'#1e3a5f'}},y:{ticks:{color:'#64748b',callback:v=>v.toLocaleString('pt-BR',{minimumFractionDigits:0}),font:{size:10}},grid:{color:'#1e3a5f'}}}};
   // Per-bar colors: future months get lower opacity
   const incColors=incs.map((_,i)=>futureFlags[i]?'#22c55e22':'#22c55e44');
   const incBorders=incs.map((_,i)=>futureFlags[i]?'#22c55e88':'#22c55e');
