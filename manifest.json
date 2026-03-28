@@ -1,13 +1,12 @@
 {
-  "name": "Finanças Pessoais",
-  "short_name": "Finanças",
-  "description": "Controle suas finanças pessoais com recorrências e notificações",
-  "start_url": "/",
+  "name": "Ca$h Up",
+  "short_name": "Ca$h Up",
+  "description": "Controle financeiro pessoal inteligente",
+  "start_url": "/financas/",
   "display": "standalone",
-  "background_color": "#0d0d0f",
-  "theme_color": "#0d0d0f",
-  "orientation": "portrait",
-  "lang": "pt-BR",
+  "background_color": "#0b1120",
+  "theme_color": "#0b1120",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "icon-192.png",
@@ -21,6 +20,5 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ],
-  "categories": ["finance", "productivity"]
+  ]
 }
