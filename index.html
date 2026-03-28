@@ -1423,14 +1423,16 @@ function txItemHTML(t){
   const isPago=t.type==='exp'&&(t.status==='paid'||(!t.status&&!isProj));
   const pendBadge=isPending?'<span class="badge badge-orange">⏳ Pendente</span>':isAPagar?'<span class="badge badge-orange">⏳ A Pagar</span>':isPago?'<span class="badge" style="background:var(--green-dim);color:var(--green)">✓ Pago</span>':'';
   const recBadge=t.recId&&!isProj?'<span class="badge badge-blue">🔁</span>':'';
-  const payInfo=t.payMethod&&t.type!=='inc'?'<div class="tx-pay-badge">'+(PAY_ICO[t.payMethod]||'')+' '+(PAY_LBL[t.payMethod]||'')+'</div>':'';
-  const pagarBtn=isAPagar?'<button style="background:var(--orange);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;margin-left:4px" onclick="markPaid(\''+t.id+'\')" >Pagar ✓</button>':'';
-  const recvBtn=isPending&&!isProj?'<button style="background:var(--green);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;margin-left:4px" onclick="markReceived(\''+t.id+'\')" >Receber</button>':'';
+  const payInfo=t.payMethod&&t.type!=='inc'?(PAY_ICO[t.payMethod]||'')+' '+(PAY_LBL[t.payMethod]||''):'';  
+  const pagarBtn=isAPagar?'<button style="background:var(--orange);color:#000;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;margin-top:4px;display:block" onclick="markPaid(\''+t.id+'\')" >Pagar ✓</button>':'';
+  const recvBtn=isPending&&!isProj?'<button style="background:var(--green);color:#000;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;margin-top:4px;display:block" onclick="markReceived(\''+t.id+'\')" >Receber ✓</button>':'';
   const projId=isProj?(t._recId?t._recId:t.id):'';
   const isInc=t.type==='inc';const projBtn=isProj?(isInc?'<button style="background:var(--green);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="confirmProj(\''+projId+'\',\''+( t.date||'')+'\',\'inc\')" >Receber ✓</button>':'<button style="background:var(--orange);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="confirmProj(\''+projId+'\',\''+( t.date||'')+'\',\'exp\')" >Pagar ✓</button>'):''
   const editProjBtn=isProj?'<button class="tx-edit" style="margin-left:4px" onclick="editProj(\''+( t._recId||'')+'\',\''+( t.date||'')+'\')" aria-label="Editar">✏️</button>':'';
-  const editBtn=isProj?(projBtn+editProjBtn):`<button class="tx-edit" onclick="editTx('${t.id}')" aria-label="Editar">✏️ Editar</button>`;
-  return '<div class="tx-item" style="'+itemStyle+'"><div class="tx-icon" style="'+bg+'">'+ico+'</div><div class="tx-body"><div class="tx-desc">'+(t.desc||t.cat)+projBadge+pendBadge+recBadge+'</div><div class="tx-meta">'+t.cat+' · '+ds+'</div></div><div class="tx-right"><div class="tx-amount '+(t.type==='inc'?'inc':'exp')+'">'+sign+R(t.amount)+'</div>'+payInfo+recvBtn+'</div>'+editBtn+'</div>';
+  const editBtn=!isProj&&!isAPagar&&!isPending?`<button class="tx-edit" onclick="editTx('${t.id}')" aria-label="Editar">✏️ Editar</button>`:'<button class="tx-edit" style="font-size:14px;padding:4px;border:none;background:none" onclick="'+( isProj?'editProj(\''+( t._recId||'')+'\',\''+( t.date||'')+'\')':'editTx(\''+t.id+'\'')+')" aria-label="Editar">✏️</button>';
+  // Action button: priority = proj confirm > pagar > receber > edit
+  const actionBtn=isProj?projBtn:isAPagar?pagarBtn:isPending?recvBtn:'';
+  return '<div class="tx-item" style="'+itemStyle+'"><div class="tx-icon" style="'+bg+'">'+ico+'</div><div class="tx-body"><div class="tx-desc">'+(t.desc||t.cat)+projBadge+pendBadge+recBadge+'</div><div class="tx-meta">'+t.cat+' · '+ds+(payInfo?' · '+payInfo.replace(/<[^>]+>/g,''):'')+'</div></div><div class="tx-right"><div class="tx-amount '+(t.type==='inc'?'inc':'exp')+'">'+sign+R(t.amount)+'</div>'+(actionBtn||editBtn)+'</div></div>';
 }
 
 
