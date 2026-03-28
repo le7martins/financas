@@ -228,10 +228,11 @@ select.field{cursor:pointer;font-size:13px}
 
 /* PAYMENT METHOD GRID */
 .pay-label{font-size:11px;color:var(--text-muted);margin-bottom:8px;font-weight:500}
-.form-pay-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:12px}
-.pay-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:var(--radius-xs);border:1px solid var(--border2);background:var(--card2);cursor:pointer;transition:all .15s;font-size:10px;color:var(--text-muted)}
-.pay-btn .pay-icon{font-size:18px}
-.pay-btn.sel{border-color:var(--blue);background:var(--blue-dim);color:var(--blue)}
+.form-pay-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:12px}
+.pay-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:12px 6px;border-radius:var(--radius-xs);border:1px solid var(--border2);background:var(--card2);cursor:pointer;transition:all .15s;font-size:11px;font-weight:500;color:var(--text-muted);min-height:64px;text-align:center;line-height:1.2}
+.pay-btn .pay-icon{font-size:22px;display:block}
+.pay-btn.sel{border-color:var(--blue);background:var(--blue-dim);color:var(--blue);font-weight:700}
+@media(max-width:360px){.form-pay-grid{grid-template-columns:repeat(3,1fr)}}
 
 /* LANCAMENTOS TABS */
 .tab-row{display:flex;gap:4px;background:var(--card2);border-radius:var(--radius-xs);padding:4px;margin-bottom:14px}
@@ -656,7 +657,6 @@ input:checked+.slider:before{transform:translateX(16px)}
             <button class="pay-btn sel" data-pay="pix" onclick="selPay(this)"><span class="pay-icon">📱</span>PIX</button>
             <button class="pay-btn" data-pay="debito" onclick="selPay(this)"><span class="pay-icon">💳</span>Débito</button>
             <button class="pay-btn" data-pay="dinheiro" onclick="selPay(this)"><span class="pay-icon">💵</span>Dinheiro</button>
-            <button class="pay-btn" data-pay="cheque" onclick="selPay(this)"><span class="pay-icon">📄</span>Cheque</button>
             <button class="pay-btn" data-pay="boleto" onclick="selPay(this)"><span class="pay-icon">📋</span>Boleto</button>
           </div>
 
@@ -1326,7 +1326,8 @@ function txItemHTML(t){
   const payInfo=t.payMethod&&t.type!=='inc'?'<div class="tx-pay-badge">'+(PAY_ICO[t.payMethod]||'')+' '+(PAY_LBL[t.payMethod]||'')+'</div>':'';
   const recvBtn=isPending&&!isProj?'<button style="background:var(--green);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;margin-left:4px" onclick="markReceived(\''+t.id+'\')" >Receber</button>':'';
   const isInc=t.type==='inc';const projBtn=isProj?(isInc?'<button style="background:var(--green);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="confirmProj(\''+(t._recId||'')+'\',\''+(t.date||'')+'\',\'inc\')" >Receber ✓</button>':'<button style="background:var(--orange);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="confirmProj(\''+(t._recId||'')+'\',\''+(t.date||'')+'\',\'exp\')" >Pagar ✓</button>'):'';
-  const editBtn=isProj?projBtn:`<button class="tx-edit" onclick="editTx('${t.id}')" aria-label="Editar">✏️ Editar</button>`;
+  const editProjBtn=isProj?'<button class="tx-edit" style="margin-left:4px" onclick="editProj(\''+( t._recId||'')+'\',\''+( t.date||'')+'\')" aria-label="Editar">✏️</button>':'';
+  const editBtn=isProj?(projBtn+editProjBtn):`<button class="tx-edit" onclick="editTx('${t.id}')" aria-label="Editar">✏️ Editar</button>`;
   return '<div class="tx-item" style="'+itemStyle+'"><div class="tx-icon" style="'+bg+'">'+ico+'</div><div class="tx-body"><div class="tx-desc">'+(t.desc||t.cat)+projBadge+pendBadge+recBadge+'</div><div class="tx-meta">'+t.cat+' · '+ds+'</div></div><div class="tx-right"><div class="tx-amount '+(t.type==='inc'?'inc':'exp')+'">'+sign+R(t.amount)+'</div>'+payInfo+recvBtn+'</div>'+editBtn+'</div>';
 }
 
@@ -1449,7 +1450,52 @@ function closeSubPage(){
 
 // ══ EDIT TRANSACTION ══
 let _editTxId=null, _editScope='single';
+let _projRecId=null,_projDate=null,_projType=null;
 
+function editProj(recId,date){
+  _projRecId=recId;_projDate=date;  const r=recs.find(x=>x.id===recId);
+  if(!r){toast('w','Recorrencia nao encontrada','');return;}
+  _editTxId='proj_'+recId+'_'+date;
+  _editScope='single';
+  const isInc=r.type==='inc';
+  _projType=isInc?'inc':'exp';
+  const catOpts=CATS[r.type]||CATS.exp;
+  const catSelHtml=catOpts.map(c=>'<option'+(c===r.cat?' selected':'')+'>'+c+'</option>').join('');
+  const body='<div style="margin-bottom:10px;padding:8px 10px;background:var(--blue-dim);border-radius:6px;font-size:12px;color:var(--blue-bright)">📅 Lançamento previsto para '+fmtD(date)+'</div>'
+    +'<div class="field-wrap" style="margin-bottom:9px"><div class="field-label">Descrição</div><input class="field" id="etDesc" style="margin-bottom:0" value="'+(r.desc||'').replace(/"/g,'&quot;')+'"></div>'
+    +'<div class="field-wrap" style="margin-bottom:9px"><div class="field-label">Valor (R$)</div><input class="field" id="etAmount" type="number" inputmode="decimal" value="'+r.amount+'" style="margin-bottom:0"></div>'
+    +'<div class="field-wrap" style="margin-bottom:9px"><div class="field-label">Categoria</div><select class="field" id="etCat" style="margin-bottom:0">'+catSelHtml+'</select></div>'
+    +'<div id="editPayGrid"></div>'
+    +'<div style="margin-bottom:10px"><div class="field-label" style="margin-bottom:7px">🔁 Alterar recorrência:</div><div class="edit-scope-row"><button class="scope-btn sel" onclick="setEditScope(&quot;single&quot;,this)">Apenas este mês</button><button class="scope-btn" onclick="setEditScope(&quot;all&quot;,this)">Este e todos os futuros</button></div></div>'
+    +'<div style="display:flex;gap:8px;margin-top:4px"><button class="btn-main" onclick="saveProjEdit(_projRecId,_projDate,_projType)">💾 Confirmar e Salvar</button></div>';
+  showModal(isInc?'✏️ Editar Receita Prevista':'✏️ Editar Despesa Prevista','',body);
+}
+async function saveProjEdit(recId,date,type){
+  const r=recs.find(x=>x.id===recId);if(!r)return;
+  const desc=document.getElementById('etDesc').value.trim()||r.desc;
+  const amount=parseFloat(document.getElementById('etAmount').value)||r.amount;
+  const cat=document.getElementById('etCat').value||r.cat;
+  if(_editScope==='all'){
+    // Update the rec itself
+    r.desc=desc;r.amount=amount;r.cat=cat;
+    await saveAll();render();closeModal();
+    toast('s','Recorrencia atualizada!',desc+' — todos os futuros alterados.');
+  } else {
+    // Confirm just this month with the edited values
+    const[y,m]=date.split('-').map(Number);
+    if(!r.paidDates)r.paidDates=[];r.paidDates.push(date);
+    r.paidCount=(r.paidCount||0)+1;
+    const tx={id:'tx'+Date.now(),desc,amount,date,cat,type:r.type||type,
+      payMethod:type==='inc'?null:'pix',month:mk(y,m-1),recId,accId:r.accId||null,
+      status:type==='inc'?'recebido':'paid'};
+    txs.unshift(tx);
+    if(r.accId){const a=accounts.find(x=>x.id===r.accId);if(a){if(type==='inc')a.balance+=amount;else a.balance-=amount;}}
+    const nd=nextDueDate(date,r.freq);if(nd)r.dueDate=nd;
+    if(r.totalInstallments>0&&r.paidCount>=r.totalInstallments)recs=recs.filter(x=>x.id!==recId);
+    await saveAll();render();closeModal();
+    toast('s',type==='inc'?'Recebido!':'Pago!',desc+' · '+R(amount));
+  }
+}
 function selEditPay(btn){document.querySelectorAll('#editPayGrid .pay-btn').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');}
 function editTx(id){
   const t=txs.find(x=>x.id===id);
@@ -1461,7 +1507,7 @@ function editTx(id){
   const catOpts=(CATS[t.type]||CATS.exp);
   const catSelHtml=catOpts.map(c=>'<option'+(c===t.cat?' selected':'')+'>'+c+'</option>').join('');
   // Payment method buttons (expense only)
-  const PAYS=['pix','debito','dinheiro','cheque','boleto'];
+  const PAYS=['pix','debito','dinheiro','boleto'];
   const payBtnsHtml=PAYS.map(function(p){const sel=t.payMethod===p?' sel':'';return '<button class="pay-btn'+sel+'" data-pay="'+p+'" onclick="selEditPay(this)"><span class=\"pay-icon\">'+( PAY_ICO[p]||'')+' </span>'+PAY_LBL[p]+'</button>';}).join('');
   const paySection=!isInc?'<div class=\"field-label\" style=\"margin-top:9px\">Forma de Pagamento</div><div id=\"editPayGrid\" style=\"display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px\">'+payBtnsHtml+'</div>':'<div id=\"editPayGrid\"></div>';
   // Scope for recurring
