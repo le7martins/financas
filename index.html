@@ -1415,26 +1415,27 @@ function txItemHTML(t){
   const isAPagar=!isProj&&t.type==='exp'&&t.status==='a_pagar';
   const isPending=!isProj&&t.type==='inc'&&t.status==='pendente';
   const isPago=!isProj&&t.type==='exp'&&(t.status==='paid'||(!t.status&&!isProj));
-  const bg=isProj?'background:var(--border2)':isAPagar?'background:var(--orange-dim)':t.type==='inc'?'background:var(--green-dim)':'background:var(--red-dim)';
+  const isInc=t.type==='inc';
+  const bg=isProj?'background:var(--border2)':isAPagar?'background:var(--orange-dim)':isInc?'background:var(--green-dim)':'background:var(--red-dim)';
   const itemStyle=isProj?'opacity:.7;border-style:dashed':'';
   const d=new Date((t.date||todayStr())+'T12:00:00');
   const ds=d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
-  const sign=t.type==='inc'?'+':'-';
-  const projBadge=isProj?'<span class="badge badge-proj">📅 Previsto</span>':'';
-  const pendBadge=isPending?'<span class="badge badge-orange">⏳ Pendente</span>':isAPagar?'<span class="badge badge-orange">⏳ A Pagar</span>':isPago?'<span class="badge" style="background:var(--green-dim);color:var(--green)">✓ Pago</span>':'';
+  const sign=isInc?'+':'-';
+  const payMeta=t.payMethod&&!isInc?' · '+(PAY_ICO[t.payMethod]||'')+' '+(PAY_LBL[t.payMethod]||''):'';
   const recBadge=t.recId&&!isProj?'<span class="badge badge-blue">🔁</span>':'';
-  const payMeta=t.payMethod&&t.type!=='inc'?' · '+(PAY_ICO[t.payMethod]||'')+' '+(PAY_LBL[t.payMethod]||''):'';
-  const isInc=t.type==='inc';
-  // Build right-side action button
+  const projBadge=isProj?'<span class="badge badge-proj">📅 Previsto</span>':'';
+  const pagarStyle='display:inline-flex;align-items:center;gap:3px;background:var(--orange-dim);color:var(--orange);border:1px solid var(--orange);border-radius:4px;font-size:9px;font-weight:700;padding:2px 6px;cursor:pointer;margin-left:4px;vertical-align:middle';
+  const receberStyle='display:inline-flex;align-items:center;gap:3px;background:var(--green-dim);color:var(--green);border:1px solid var(--green);border-radius:4px;font-size:9px;font-weight:700;padding:2px 6px;cursor:pointer;margin-left:4px;vertical-align:middle';
+  const pendBadge=isAPagar
+    ?'<button onclick="confirmMarkPaid(\''+t.id+'\')" style="'+pagarStyle+'">⏳ A Pagar</button>'
+    :isPending
+    ?'<button onclick="confirmMarkReceived(\''+t.id+'\')" style="'+receberStyle+'">⏳ Pendente</button>'
+    :isPago?'<span class="badge" style="background:var(--green-dim);color:var(--green)">✓ Pago</span>':'';
   let rightBtn='';
   if(isProj){
     if(isInc) rightBtn='<button style="background:var(--green);color:#000;border:none;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer" onclick="confirmProj(\''+( t._recId||t.id)+'\',\''+( t.date||'')+'\',\'inc\')">Receber ✓</button>';
     else rightBtn='<button style="background:var(--orange);color:#000;border:none;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer" onclick="confirmProj(\''+( t._recId||t.id)+'\',\''+( t.date||'')+'\',\'exp\')">Pagar ✓</button>';
     rightBtn+='<button class="tx-edit" style="font-size:13px;padding:3px 6px;margin-left:4px" onclick="editProj(\''+( t._recId||'')+'\',\''+( t.date||'')+'\')">✏️</button>';
-  } else if(isAPagar){
-    rightBtn='<button style="background:var(--orange);color:#000;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer" onclick="markPaid(\''+t.id+'\')">Pagar ✓</button>';
-  } else if(isPending){
-    rightBtn='<button style="background:var(--green);color:#000;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer" onclick="markReceived(\''+t.id+'\')">Receber ✓</button>';
   } else {
     rightBtn=`<button class="tx-edit" onclick="editTx('${t.id}')" aria-label="Editar">✏️ Editar</button>`;
   }
@@ -1841,6 +1842,22 @@ function confirmProj(recId,date,type){
 }
 
 // Mark a pending income tx (already created but not yet received)
+function confirmMarkPaid(txId){
+  const tx=txs.find(t=>t.id===txId);if(!tx)return;
+  showModal('Confirmar pagamento','Marcar "'+( tx.desc||tx.cat)+'" como pago?',
+    '<div style="display:flex;gap:8px">'+
+    '<button class="btn-main" style="flex:1;background:var(--orange)" onclick="markPaid(\''+txId+'\');closeModal()">✓ Pago</button>'+
+    '<button class="btn-main" style="flex:1;background:var(--card2);color:var(--text)" onclick="closeModal()">Cancelar</button>'+
+    '</div>');
+}
+function confirmMarkReceived(txId){
+  const tx=txs.find(t=>t.id===txId);if(!tx)return;
+  showModal('Confirmar recebimento','Marcar "'+( tx.desc||tx.cat)+'" como recebido?',
+    '<div style="display:flex;gap:8px">'+
+    '<button class="btn-main" style="flex:1;background:var(--green);color:#000" onclick="markReceived(\''+txId+'\');closeModal()">✓ Recebido</button>'+
+    '<button class="btn-main" style="flex:1;background:var(--card2);color:var(--text)" onclick="closeModal()">Cancelar</button>'+
+    '</div>');
+}
 function markPaid(txId){
   const tx=txs.find(t=>t.id===txId);if(!tx)return;
   tx.status='paid';
