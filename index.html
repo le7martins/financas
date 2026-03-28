@@ -355,14 +355,18 @@ select.field{cursor:pointer;font-size:13px}
 .rec-pay-btn.inc-btn{background:var(--blue);color:#fff}
 
 /* DEBT ITEM */
-.debt-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-xs);padding:13px 14px;margin-bottom:8px;position:relative}
-.debt-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.debt-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-xs);padding:13px 14px;margin-bottom:8px;display:flex;gap:12px;align-items:center}
+.debt-body{flex:1;min-width:0}
+.debt-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
 .debt-name{font-size:13px;font-weight:700}
-.debt-total{font-size:13px;font-weight:700;color:var(--red)}
-.debt-row{display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:4px}
-.debt-del{position:absolute;top:8px;right:34px;background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:12px;opacity:0;padding:4px}
+.debt-total{font-size:12px;font-weight:700;color:var(--red)}
+.debt-row{display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:3px}
+.debt-del{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:12px;padding:3px;border-radius:4px;opacity:0;transition:opacity .15s}
 .debt-item:hover .debt-del{opacity:1}
-.debt-pay-btn{background:var(--orange);color:#000;border:none;border-radius:5px;padding:4px 9px;font-size:10px;font-weight:700;cursor:pointer;position:absolute;top:8px;right:8px}
+@media(max-width:768px){.debt-del{opacity:.4}}
+.debt-right{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0}
+.debt-pay-btn{background:var(--orange);color:#000;border:none;border-radius:6px;padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+.debt-pay-btn:disabled,.debt-pay-btn[style*="border2"]{background:var(--border2)!important;color:var(--text-muted)!important;cursor:default}
 .debt-prog-wrap{height:4px;background:var(--border2);border-radius:4px;overflow:hidden;margin-top:6px}
 .debt-prog{height:100%;border-radius:4px;background:var(--orange);transition:width .5s}
 
@@ -1811,7 +1815,9 @@ function renderDashboard(){
   ].sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).slice(0,5);
   const nrt=document.getElementById('nextRecTitle');
   const nrl=document.getElementById('nextRecList');
-  nrt.style.display=upcoming.length?'flex':'none';
+  const todayMK=new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0');
+  const isCurMonth=curKey()===todayMK;
+  nrt.style.display=(isCurMonth&&upcoming.length)?'flex':'none';
   nrl.innerHTML=upcoming.map(u=>{
     const daysLeft=Math.ceil((new Date(u.dueDate+'T12:00:00')-new Date())/(1000*60*60*24));
     const urg=daysLeft<=0?'var(--red)':daysLeft<=3?'var(--red)':daysLeft<=7?'var(--orange)':'var(--text-muted)';
@@ -1997,7 +2003,7 @@ function renderDebts(){
   el.innerHTML=activeDebts.length?activeDebts.map(d=>{
     const pct=Math.round(d.paidInstallments/d.totalInstallments*100);
     const isPaid=(d.paidDates||[]).some(pd=>pd.startsWith(curKey()));
-    return '<div class="debt-item"><div class="debt-top"><div class="debt-name">'+d.name+'</div><div style="display:flex;gap:5px;align-items:center"><div class="debt-total">'+R(d.totalAmount)+'</div><button class="rec-edit" onclick="editDebtFixed(\''+d.id+'\')" >✏️</button><button class="rec-del" onclick="delDebtConfirm(\''+d.id+'\')" >✕</button></div></div><div class="debt-row"><span>Parcela: <strong>'+R(d.monthlyPayment)+'/mês</strong></span><span>'+d.paidInstallments+'/'+d.totalInstallments+' pagas</span></div><div class="debt-row"><span>Restante: '+R(d.totalAmount-d.monthlyPayment*d.paidInstallments)+'</span><span>Vence dia '+d.dueDay+'</span></div><div class="debt-prog-wrap"><div class="debt-prog" style="width:'+pct+'%"></div></div>'+(!isPaid?'<button class="debt-pay-btn" onclick="markDone(\'debt\',\''+d.id+'\')" >Pagar</button>':'<button class="debt-pay-btn" style="background:var(--border2);cursor:default">Pago ✓</button>')+'</div>';
+    return '<div class="debt-item"><div class="debt-body"><div class="debt-top"><div class="debt-name">'+d.name+'</div><div class="debt-total">-'+R(d.monthlyPayment)+'/mês</div></div><div class="debt-row"><span>'+d.paidInstallments+'/'+d.totalInstallments+' pagas</span><span>Vence dia '+d.dueDay+'</span></div><div class="debt-row"><span style="color:var(--text-soft)">Restante: '+R(d.totalAmount-d.monthlyPayment*d.paidInstallments)+'</span></div><div class="debt-prog-wrap"><div class="debt-prog" style="width:'+pct+'%"></div></div></div><div class="debt-right">'+(!isPaid?'<button class="debt-pay-btn" onclick="markDone(\'debt\',\''+d.id+'\')" >Pagar ✓</button>':'<button class="debt-pay-btn" disabled>Pago ✓</button>')+'<div style="display:flex;gap:4px"><button class="rec-edit" onclick="editDebtFixed(\''+d.id+'\')" >✏️</button><button class="debt-del" onclick="delDebtConfirm(\''+d.id+'\')" >✕</button></div></div></div>';
   }).join(''):'<div class="empty"><div class="empty-ico">🏦</div><p>Nenhuma divida ativa</p><p style="color:var(--green);margin-top:4px">🎉 Parabens! Voce esta livre de dividas!</p></div>';
 }
 
