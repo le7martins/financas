@@ -691,10 +691,6 @@ input:checked+.slider:before{transform:translateX(16px)}
             <button class="pay-btn" data-pay="boleto" onclick="selPay(this)"><span class="pay-icon">📋</span>Boleto</button>
           </div>
 
-          <div id="accSelRow" style="margin-bottom:9px">
-            <div class="field-label">Conta (opcional)</div>
-            <select class="field" id="txAccSel" style="margin-bottom:0"><option value="">Selecione...</option></select>
-          </div>
         </div>
 
         <!-- RECEITA: Status + Conta -->
@@ -704,10 +700,7 @@ input:checked+.slider:before{transform:translateX(16px)}
             <button class="pay-btn sel" id="statusRecebido" data-status="recebido" onclick="selStatus(this)" style="flex:1;padding:10px 6px"><span class="pay-icon">✅</span>Recebido</button>
             <button class="pay-btn" id="statusPendente" data-status="pendente" onclick="selStatus(this)" style="flex:1;padding:10px 6px"><span class="pay-icon">⏳</span>Pendente</button>
           </div>
-          <div style="margin-bottom:9px">
-            <div class="field-label">Depositar em</div>
-            <select class="field" id="txAccSelInc" style="margin-bottom:0"><option value="">Selecione a conta...</option></select>
-          </div>
+
         </div>
 
         <!-- RECORRENTE (both types) -->
@@ -1058,7 +1051,7 @@ async function loadData(user){
     }
     const d=snap.data();
     profile=d.profile||{name:user.displayName||'Usuario',avatar:'😊',since:todayStr(),email:user.email};
-    txs=d.txs||[]; subs=d.subs||[]; recs=d.recs||[]; debts=d.debts||[]; accounts=d.accounts||[];
+    txs=d.txs||[]; subs=d.subs||[]; recs=d.recs||[]; debts=d.debts||[];
     launchApp(user);
   }catch(err){
     console.error('Erro ao carregar dados:',err);
@@ -1073,7 +1066,7 @@ async function loadData(user){
 async function saveCloud(){
   if(!uid)return;
   const fb=window._fb;
-  try{await fb.setDoc(fb.doc(fb.db,'users',uid),{profile,txs,subs,recs,debts,accounts,updatedAt:new Date().toISOString()});}
+  try{await fb.setDoc(fb.doc(fb.db,'users',uid),{profile,txs,subs,recs,debts,updatedAt:new Date().toISOString()});}
   catch(e){toast('w','Erro ao salvar','Verifique sua conexao.');}
 }
 
@@ -1302,11 +1295,7 @@ function selPay(btn){
   btn.classList.add('sel');
   curPayMethod=btn.dataset.pay;
 }
-function populateSels(){
-  const accOpts='<option value="">Selecione...</option>'+accounts.map(a=>'<option value="'+a.id+'">'+a.icon+' '+a.name+'</option>').join('');
-  document.getElementById('txAccSel').innerHTML=accOpts;
-  document.getElementById('txAccSelInc').innerHTML='<option value="">Selecione a conta...</option>'+accounts.map(a=>'<option value="'+a.id+'">'+a.icon+' '+a.name+'</option>').join('');
-}
+function populateSels(){}
 function selStatus(btn){
   document.querySelectorAll('#incSection .pay-btn').forEach(b=>b.classList.remove('sel'));
   btn.classList.add('sel');
@@ -1332,9 +1321,7 @@ async function addTx(){
   const date=document.getElementById('txDate').value;
   const cat=document.getElementById('txCat').value;
   const isInc=curTxType==='inc';
-  const accId=isInc
-    ?document.getElementById('txAccSelInc').value
-    :document.getElementById('txAccSel').value;
+  const accId=null;
   const isRec=document.getElementById('recSwitch').checked;
   const installments=parseInt(document.getElementById('txInstallments')?.value)||0;
 
@@ -1360,12 +1347,7 @@ async function addTx(){
       recId:rec.id,status:isInc?curStatus:(date<todayStr()?'paid':'a_pagar')
     };
     txs.unshift(tx);
-    // update account balance only if receita=recebido or despesa
-    if(accId){
-      const a=accounts.find(x=>x.id===accId);
-      if(a&&(isInc&&curStatus==='recebido')){a.balance+=amount;}
-      else if(a&&!isInc){a.balance-=amount;}
-    }
+
     const btn=document.getElementById('addTxBtn');btn.disabled=true;btn.textContent='Salvando...';
     await saveAll();
     btn.disabled=false;btn.textContent=isInc?'+ Lançar Receita':'+ Lançar Despesa';
@@ -1383,12 +1365,7 @@ async function addTx(){
     accId:accId||null,
     status:isInc?curStatus:(date<todayStr()?'paid':'a_pagar')
   };
-  // Balance: income only if recebido, expense always
-  if(accId){
-    const a=accounts.find(x=>x.id===accId);
-    if(a&&isInc&&curStatus==='recebido'){a.balance+=amount;}
-    else if(a&&!isInc){a.balance-=amount;}
-  }
+  // account balance tracking removed
   txs.unshift(tx);
   const btn=document.getElementById('addTxBtn');btn.disabled=true;btn.textContent='Salvando...';
   await saveAll();
@@ -1837,10 +1814,7 @@ function confirmProj(recId,date,type){
     status:isInc?'recebido':'paid'
   };
   txs.unshift(tx);
-  if(r.accId){
-    const a=accounts.find(x=>x.id===r.accId);
-    if(a){if(isInc)a.balance+=r.amount; else a.balance-=r.amount;}
-  }
+
   // Advance dueDate to next occurrence
   const nd=nextDueDate(date,r.freq);
   if(nd)r.dueDate=nd;
@@ -1864,7 +1838,6 @@ function markPaid(txId){
 function markReceived(txId){
   const tx=txs.find(t=>t.id===txId);if(!tx)return;
   tx.status='recebido';
-  if(tx.accId){const a=accounts.find(x=>x.id===tx.accId);if(a)a.balance+=tx.amount;}
   saveAll();render();toast('s','Marcado como recebido!','');
 }
 
@@ -2262,7 +2235,7 @@ function renderCharts(){
 
 // ══ BACKUP ══
 function exportBk(){
-  const d={version:'4.0',exportedAt:new Date().toISOString(),profile,txs,subs,recs,debts,accounts};
+  const d={version:'4.0',exportedAt:new Date().toISOString(),profile,txs,subs,recs,debts};
   const blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='cashup-'+todayStr()+'.json';a.click();URL.revokeObjectURL(url);
   toast('s','Backup exportado!','');
@@ -2290,13 +2263,13 @@ function importBk(event){
 function doImport(enc){
   try{
     const d=JSON.parse(decodeURIComponent(atob(enc)));
-    txs=d.txs||[];subs=d.subs||[];recs=d.recs||[];debts=d.debts||[];accounts=d.accounts||[];
+    txs=d.txs||[];subs=d.subs||[];recs=d.recs||[];debts=d.debts||[];
     if(d.profile)profile={...profile,...d.profile};
     saveAll();render();closeModal();toast('s','Importado!',txs.length+' transacoes.');
   }catch{toast('e','Erro ao importar','');}
 }
 function confirmReset(){showModal('Zerar dados','Apaga TODOS os dados permanentemente. Irreversivel.','<div style="display:flex;gap:8px"><button class="bk-btn red" style="flex:1;padding:11px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer" onclick="doReset()">Sim, apagar tudo</button><button class="btn-main" style="flex:1" onclick="closeModal()">Cancelar</button></div>');}
-async function doReset(){const fb=window._fb;await fb.setDoc(fb.doc(fb.db,'users',uid),{profile,txs:[],subs:[],recs:[],debts:[],accounts:[],updatedAt:new Date().toISOString()});txs=[];subs=[];recs=[];debts=[];accounts=[];render();closeModal();toast('s','Dados apagados!','');}
+async function doReset(){const fb=window._fb;await fb.setDoc(fb.doc(fb.db,'users',uid),{profile,txs:[],subs:[],recs:[],debts:[],accounts:[],updatedAt:new Date().toISOString()});txs=[];subs=[];recs=[];debts=[];render();closeModal();toast('s','Dados apagados!','');}
 
 // ══ MODAL ══
 function showModal(t,s,b){document.getElementById('modalTitle').textContent=t;document.getElementById('modalSub').textContent=s;document.getElementById('modalBody').innerHTML=b;document.getElementById('mainModal').classList.add('show');// Init currency fields in modal
