@@ -1752,15 +1752,16 @@ function renderCatBreakdown(id,list,total){
 
 
 function renderGastos(){
-  // totals
+  // totals — only expenses (exclude type==='inc')
+  const expRecs=recs.filter(r=>r.type!=='inc');
   const subTotal=subs.reduce((s,x)=>s+x.amount,0);
-  const recTotal=recs.reduce((s,x)=>s+x.amount,0);
+  const recTotal=expRecs.reduce((s,x)=>s+x.amount,0);
   const debtTotal=debts.reduce((s,x)=>s+x.monthlyPayment,0);
   const total=subTotal+recTotal+debtTotal;
   document.getElementById('gfTotal').textContent=R(total);
   document.getElementById('gfSubCount').textContent=subs.length+' ativas';
   document.getElementById('gfSubTotal').textContent=R(subTotal);
-  document.getElementById('gfRecCount').textContent=recs.length+' ativos';
+  document.getElementById('gfRecCount').textContent=expRecs.length+' ativos';
   document.getElementById('gfRecTotal').textContent=R(recTotal);
   document.getElementById('gfDebtCount').textContent=debts.filter(d=>d.paidInstallments<d.totalInstallments).length+' ativas';
   document.getElementById('gfDebtTotal').textContent=R(debtTotal);
@@ -1790,14 +1791,16 @@ function renderSubs(){
 
 function renderRecs(){
   const t=todayStr();
-  const paid=recs.filter(r=>(r.paidDates||[]).includes(t));
-  document.getElementById('recActiveCount').textContent=recs.length;
-  document.getElementById('recPaidCount').textContent=paid.length+'/'+recs.length;
-  const monthly=recs.reduce((s,r)=>s+(r.freq==='monthly'?r.amount:r.freq==='weekly'?r.amount*4.3:r.freq==='biweekly'?r.amount*2:r.freq==='quarterly'?r.amount/3:r.amount/12),0);
+  // Only expenses — income recs are managed via Lançamentos
+  const expRecs=recs.filter(r=>r.type!=='inc');
+  const paid=expRecs.filter(r=>(r.paidDates||[]).includes(t));
+  document.getElementById('recActiveCount').textContent=expRecs.length;
+  document.getElementById('recPaidCount').textContent=paid.length+'/'+expRecs.length;
+  const monthly=expRecs.reduce((s,r)=>s+(r.freq==='monthly'?r.amount:r.freq==='weekly'?r.amount*4.3:r.freq==='biweekly'?r.amount*2:r.freq==='quarterly'?r.amount/3:r.amount/12),0);
   document.getElementById('recMonthly').textContent=R(monthly);
   document.getElementById('recAnnual').textContent=R(monthly*12);
   const el=document.getElementById('recList');
-  el.innerHTML=recs.length?recs.map(r=>{
+  el.innerHTML=expRecs.length?expRecs.map(r=>{
     const isPaid=(r.paidDates||[]).includes(t);const isT=r.dueDate===t;
     const isInc=r.type==='inc';
     const parc=r.totalInstallments>0?' ('+r.paidCount+'/'+r.totalInstallments+')':'';
