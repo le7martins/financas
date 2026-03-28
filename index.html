@@ -59,6 +59,25 @@ document.addEventListener('DOMContentLoaded',()=>{
   --radius:14px;--radius-sm:10px;--radius-xs:8px;
   --sidebar:240px;
 }
+[data-theme="light"]{
+  --bg:#f0f4f8;--surface:#ffffff;--card:#f8fafc;--card2:#f1f5f9;
+  --border:#e2e8f0;--border2:#cbd5e1;
+  --blue:#2563eb;--blue-dim:#2563eb18;--blue-bright:#1d4ed8;
+  --green:#16a34a;--green-dim:#16a34a15;
+  --red:#dc2626;--red-dim:#dc262615;
+  --orange:#d97706;--orange-dim:#d9770615;
+  --purple:#7c3aed;--purple-dim:#7c3aed15;
+  --teal:#0d9488;--teal-dim:#0d948815;
+  --text:#0f172a;--text-muted:#64748b;--text-soft:#475569;
+}
+[data-theme="light"] .sidebar{box-shadow:2px 0 12px #00000014}
+[data-theme="light"] .topbar{box-shadow:0 1px 8px #00000010}
+[data-theme="light"] .dash-card{box-shadow:0 1px 4px #0000000a}
+[data-theme="light"] .login-screen{background:var(--bg)}
+[data-theme="light"] .spinner{border-color:#cbd5e1;border-top-color:var(--blue)}
+[data-theme="light"] .modal{box-shadow:0 8px 40px #00000022}
+.theme-btn{width:32px;height:32px;border-radius:50%;border:1px solid var(--border2);background:var(--card);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;transition:all .2s;flex-shrink:0}
+.theme-btn:hover{border-color:var(--blue);background:var(--blue-dim)}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
 body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden;font-size:14px}
@@ -559,7 +578,7 @@ input:checked+.slider:before{transform:translateX(16px)}
       <span class="topbar-title" id="topTitle">Dashboard</span>
     </div>
     <div class="topbar-right">
-      <div class="topbar-help" title="Ajuda">?</div>
+      <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Alternar tema" aria-label="Alternar tema claro/escuro">🌙</button>
       <div class="topbar-av" id="topAv" onclick="goPage('perfil')" title="Meu perfil">😊</div>
     </div>
   </header>
@@ -2076,7 +2095,29 @@ function initCurrencyField(id){
   el.addEventListener('blur',()=>{if(el.value&&el.value!=='')formatBRL(el);});
 }
 
+// ══ THEME ══
+function toggleTheme(){
+  const isLight=document.documentElement.getAttribute('data-theme')==='light';
+  const next=isLight?'dark':'light';
+  applyTheme(next);
+  localStorage.setItem('cashup_theme',next);
+}
+function applyTheme(theme){
+  if(theme==='light'){
+    document.documentElement.setAttribute('data-theme','light');
+    document.getElementById('themeBtn').textContent='☀️';
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    document.getElementById('themeBtn').textContent='🌙';
+  }
+}
+function loadTheme(){
+  const saved=localStorage.getItem('cashup_theme')||'dark';
+  applyTheme(saved);
+}
+
 function init(){
+  loadTheme();
   document.getElementById('txDate').value=todayStr();
   updateCats();setTxType('exp');
   initCurrencyField('txAmount');
