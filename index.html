@@ -1417,33 +1417,39 @@ function txItemHTML(t){
   const isPago=!isProj&&t.type==='exp'&&(t.status==='paid'||(!t.status&&!isProj));
   const isInc=t.type==='inc';
   const bg=isProj?'background:var(--border2)':isAPagar?'background:var(--orange-dim)':isInc?'background:var(--green-dim)':'background:var(--red-dim)';
-  const itemStyle=isProj?'opacity:.7;border-style:dashed':'';
+  const itemStyle=isProj?'opacity:.75;border-style:dashed':'';
   const d=new Date((t.date||todayStr())+'T12:00:00');
   const ds=d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
   const sign=isInc?'+':'-';
   const payMeta=t.payMethod&&!isInc?' · '+(PAY_ICO[t.payMethod]||'')+' '+(PAY_LBL[t.payMethod]||''):'';
   const recBadge=t.recId&&!isProj?'<span class="badge badge-blue">🔁</span>':'';
-  const projBadge=isProj?'<span class="badge badge-proj">📅 Previsto</span>':'';
-  // Use numeric index to avoid any quote escaping issues in onclick
+  // Build status badge (all clickable via window._ba index)
   let pendBadge='';
-  if(isAPagar){
+  if(isProj){
+    // Projected items: clicking badge confirms payment/receipt
+    const projId=t._recId||t.id;
+    const projAction=isInc?'proj-inc':'proj-exp';
+    const idx=window._ba.push({a:projAction,recId:projId,date:t.date||'',type:isInc?'inc':'exp'})-1;
+    const col=isInc?'var(--green)':'var(--orange)';
+    const colDim=isInc?'var(--green-dim)':'var(--orange-dim)';
+    pendBadge='<button onclick="window.doBadge('+idx+')" style="display:inline-flex;align-items:center;gap:4px;background:'+colDim+';color:'+col+';border:1px solid '+col+';border-radius:6px;font-size:11px;font-weight:700;padding:7px 14px;cursor:pointer;touch-action:manipulation">📅 '+(isInc?'Receber':'Pagar')+'</button>';
+  } else if(isAPagar){
     const idx=window._ba.push({a:'pay',id:t.id})-1;
-    pendBadge='<button onclick="window.doBadge('+idx+')" style="display:inline-flex;align-items:center;gap:3px;background:var(--orange-dim);color:var(--orange);border:1px solid var(--orange);border-radius:4px;font-size:9px;font-weight:700;padding:2px 6px;cursor:pointer;margin-left:4px;vertical-align:middle">⏳ A Pagar</button>';
+    pendBadge='<button onclick="window.doBadge('+idx+')" style="display:inline-flex;align-items:center;gap:4px;background:var(--orange-dim);color:var(--orange);border:1px solid var(--orange);border-radius:6px;font-size:11px;font-weight:700;padding:7px 14px;cursor:pointer;touch-action:manipulation">⏳ A Pagar</button>';
   } else if(isPending){
     const idx=window._ba.push({a:'receive',id:t.id})-1;
-    pendBadge='<button onclick="window.doBadge('+idx+')" style="display:inline-flex;align-items:center;gap:3px;background:var(--green-dim);color:var(--green);border:1px solid var(--green);border-radius:4px;font-size:9px;font-weight:700;padding:2px 6px;cursor:pointer;margin-left:4px;vertical-align:middle">⏳ Pendente</button>';
+    pendBadge='<button onclick="window.doBadge('+idx+')" style="display:inline-flex;align-items:center;gap:4px;background:var(--green-dim);color:var(--green);border:1px solid var(--green);border-radius:6px;font-size:11px;font-weight:700;padding:7px 14px;cursor:pointer;touch-action:manipulation">⏳ Pendente</button>';
   } else if(isPago){
     pendBadge='<span class="badge" style="background:var(--green-dim);color:var(--green)">✓ Pago</span>';
   }
+  // Right side: only edit button (action is done via badge)
   let rightBtn='';
   if(isProj){
-    if(isInc) rightBtn='<button style="background:var(--green);color:#000;border:none;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer" onclick="confirmProj(\''+( t._recId||t.id)+'\',\''+( t.date||'')+'\',\'inc\')">Receber ✓</button>';
-    else rightBtn='<button style="background:var(--orange);color:#000;border:none;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer" onclick="confirmProj(\''+( t._recId||t.id)+'\',\''+( t.date||'')+'\',\'exp\')">Pagar ✓</button>';
-    rightBtn+='<button class="tx-edit" style="font-size:13px;padding:3px 6px;margin-left:4px" onclick="editProj(\''+( t._recId||'')+'\',\''+( t.date||'')+'\')">✏️</button>';
+    rightBtn='<button class="tx-edit" style="font-size:13px;padding:3px 6px" onclick="editProj(\''+( t._recId||'')+'\',\''+( t.date||'')+'\')">✏️</button>';
   } else {
     rightBtn=`<button class="tx-edit" onclick="editTx('${t.id}')" aria-label="Editar">✏️ Editar</button>`;
   }
-  const badgeLine=(pendBadge||projBadge||recBadge)?'<div style="margin-top:5px">'+projBadge+pendBadge+recBadge+'</div>':'';
+  const badgeLine=pendBadge?'<div style="margin-top:5px">'+pendBadge+recBadge+'</div>':(recBadge?'<div style="margin-top:4px">'+recBadge+'</div>':'');
   return '<div class="tx-item" style="'+itemStyle+'"><div class="tx-icon" style="'+bg+'">'+ico+'</div><div class="tx-body"><div class="tx-desc">'+(t.desc||t.cat)+'</div><div class="tx-meta">'+t.cat+' · '+ds+payMeta+'</div>'+badgeLine+'</div><div class="tx-right"><div class="tx-amount '+(isInc?'inc':'exp')+'">'+sign+R(t.amount)+'</div>'+rightBtn+'</div></div>';
 }
 
@@ -1881,7 +1887,20 @@ window.doBadge=function(idx){
   const entry=window._ba[idx];
   if(!entry)return;
   if(entry.a==='pay') confirmMarkPaid(entry.id);
-  else confirmMarkReceived(entry.id);
+  else if(entry.a==='receive') confirmMarkReceived(entry.id);
+  else if(entry.a==='proj-exp'||entry.a==='proj-inc'){
+    const tx={desc:''};
+    // Find desc from recs or subs or debts
+    const r=recs.find(x=>x.id===entry.recId);
+    const s=subs.find(x=>('proj_sub_'+x.id+'_'+entry.date.slice(0,7))===entry.recId||x.id===entry.recId);
+    const desc=(r&&r.desc)||(s&&s.name)||'lançamento';
+    const lbl=entry.a==='proj-inc'?'receber':'pagar';
+    showModal('Confirmar '+lbl,'"'+desc+'" — confirmar como '+lbl+'?',
+      '<div style="display:flex;gap:8px">'+
+      '<button class="btn-main" style="flex:1;background:'+(entry.a==='proj-inc'?'var(--green);color:#000':'var(--orange)')+'" onclick="confirmProj(\''+entry.recId+'\',\''+entry.date+'\',\''+entry.type+'\');closeModal()">'+(entry.a==='proj-inc'?'✓ Recebido':'✓ Pago')+'</button>'+
+      '<button class="btn-main" style="flex:1;background:var(--card2);color:var(--text)" onclick="closeModal()">Cancelar</button>'+
+      '</div>');
+  }
 };
 function render(){
   window._ba=[];
