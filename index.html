@@ -892,7 +892,19 @@ input:checked+.slider:before{transform:translateX(16px)}
           <button class="bk-btn blue" onclick="document.getElementById('importFile').click()">⬆️ Importar Backup</button>
         </div>
       </div>
-      <div class="danger-zone">
+      <div class="bk-card" style="margin-bottom:10px">
+          <div class="bk-title">🔔 Notificações</div>
+          <div class="bk-desc">Horário para notificar vencimentos do dia. Você receberá um alerta com todas as despesas e receitas agendadas para o dia.</div>
+          <div class="field-row" style="margin-bottom:12px">
+            <div class="field-wrap">
+              <div class="field-label">Horário de notificação</div>
+              <input class="field" id="notifTimeInput" type="time" value="08:00" style="margin-bottom:0">
+            </div>
+          </div>
+          <button class="bk-btn blue" onclick="saveNotifTime()">💾 Salvar horário</button>
+          <button class="bk-btn green" onclick="testNotif()">🔔 Testar notificação agora</button>
+        </div>
+        <div class="danger-zone">
         <div class="dz-title">🗑️ Zona de Perigo</div>
         <div class="dz-desc">Apaga permanentemente todos os seus dados da nuvem. Irreversível.</div>
         <button class="bk-btn red" onclick="confirmReset()">Zerar todos os dados</button>
@@ -1070,6 +1082,7 @@ function launchApp(user){
   updateMonthLabels();
   render();
   checkNotifPerm();
+  scheduleNotif();
 }
 
 // ══ PROFILE ══
@@ -1094,10 +1107,60 @@ function updateProfilePage(){
   document.getElementById('profEmail').textContent=profile.email||'';
   document.getElementById('profSince').textContent=profile.since?'Membro desde '+fmtD(profile.since):'';
   document.getElementById('editName').value=profile.name;
+  const savedNotifTime=localStorage.getItem('cashup_notif_time')||'08:00';
+  const nti=document.getElementById('notifTimeInput');if(nti)nti.value=savedNotifTime;
   document.querySelectorAll('#editAvPicker .av-opt').forEach(o=>o.classList.toggle('sel',o.dataset.av===profile.avatar));
   document.getElementById('psTx').textContent=txs.filter(t=>!t.future).length;
   document.getElementById('psMeses').textContent=new Set(txs.map(t=>t.month)).size||0;
   document.getElementById('psRec').textContent=subs.length+recs.length;
+}
+function saveNotifTime(){
+  if(!('Notification'in window)){toast('w','Notificações não suportadas','');return;}
+  if(Notification.permission==='denied'){toast('e','Notificações bloqueadas','Habilite nas configurações do navegador.');return;}
+  const t=document.getElementById('notifTimeInput').value||'08:00';
+  localStorage.setItem('cashup_notif_time',t);
+  scheduleNotif();
+  toast('s','Horário salvo!','Notificação configurada para as '+t);
+}
+function scheduleNotif(){
+  if(!('Notification'in window)||Notification.permission!=='granted') return;
+  const saved=localStorage.getItem('cashup_notif_time')||'08:00';
+  const[h,m]=saved.split(':').map(Number);
+  const now=new Date();
+  let next=new Date(now);
+  next.setHours(h,m,0,0);
+  if(next<=now)next.setDate(next.getDate()+1);
+  const ms=next-now;
+  clearTimeout(window._notifTimer);
+  window._notifTimer=setTimeout(()=>{
+    fireNotif();
+    scheduleNotif(); // reschedule for next day
+  },ms);
+}
+function fireNotif(){
+  const today=todayStr();
+  const dues=[
+    ...subs.filter(s=>!(s.paidDates||[]).some(pd=>pd.startsWith(today.slice(0,7)))&&s.dueDay===new Date().getDate()).map(s=>s.name+' (R$'+s.amount.toLocaleString('pt-BR',{minimumFractionDigits:2})+')'),
+    ...recs.filter(r=>r.dueDate===today&&r.type!=='inc').map(r=>r.desc),
+    ...debts.filter(d=>d.dueDay===new Date().getDate()&&d.paidInstallments<d.totalInstallments).map(d=>d.name)
+  ];
+  if(dues.length){
+    new Notification('Ca$h Up — Vencimentos hoje 📅',{
+      body:dues.join(', '),
+      icon:'icon-192.png'
+    });
+  }
+}
+function testNotif(){
+  if(!('Notification'in window)){toast('w','Não suportado','');return;}
+  if(Notification.permission==='default'){
+    Notification.requestPermission().then(p=>{if(p==='granted')fireNotif();});
+  } else if(Notification.permission==='granted'){
+    fireNotif();
+    toast('s','Notificação enviada!','Verifique suas notificações.');
+  } else {
+    toast('e','Bloqueado','Habilite nas configurações do browser.');
+  }
 }
 function saveProfile(){
   const name=document.getElementById('editName').value.trim()||profile.name;
@@ -1262,7 +1325,7 @@ async function addTx(){
       id:'tx'+Date.now(),desc:desc||cat,amount,date,cat,type:curTxType,
       payMethod:isInc?'pix':curPayMethod,month:mk(y,m-1),
       accId:accId||null,
-      recId:rec.id,status:isInc?curStatus:'paid'
+      recId:rec.id,status:isInc?curStatus:(date<todayStr()?'paid':'a_pagar')
     };
     txs.unshift(tx);
     // update account balance only if receita=recebido or despesa
@@ -1286,7 +1349,7 @@ async function addTx(){
     id:'tx'+Date.now(),desc:desc||cat,amount,date,cat,type:curTxType,
     payMethod:isInc?null:curPayMethod,month:mk(y,m-1),
     accId:accId||null,
-    status:isInc?curStatus:'paid'
+    status:isInc?curStatus:(date<todayStr()?'paid':'a_pagar')
   };
   // Balance: income only if recebido, expense always
   if(accId){
@@ -1339,15 +1402,17 @@ function txItemHTML(t){
   const ico=catIco(t.cat);
   const isProj=t._projected===true;
   const isPending=t.type==='inc'&&t.status==='pendente';
-  const bg=isProj?'background:var(--border2)':t.type==='inc'?'background:var(--green-dim)':'background:var(--red-dim)';
+  const isAPagar=t.type==='exp'&&t.status==='a_pagar'&&!isProj;
+  const bg=isProj?'background:var(--border2)':t.type==='inc'?'background:var(--green-dim)':isAPagar?'background:var(--orange-dim)':'background:var(--red-dim)';
   const itemStyle=isProj?'opacity:.65;border-style:dashed':'';
   const d=new Date((t.date||todayStr())+'T12:00:00');
   const ds=d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
   const sign=t.type==='inc'?'+':'-';
   const projBadge=isProj?'<span class="badge badge-proj">📅 Previsto</span>':'';
-  const pendBadge=isPending?'<span class="badge badge-orange">⏳ Pendente</span>':'';
+  const pendBadge=isPending?'<span class="badge badge-orange">⏳ Pendente</span>':isAPagar?'<span class="badge badge-orange">⏳ A Pagar</span>':'';
   const recBadge=t.recId&&!isProj?'<span class="badge badge-blue">🔁</span>':'';
   const payInfo=t.payMethod&&t.type!=='inc'?'<div class="tx-pay-badge">'+(PAY_ICO[t.payMethod]||'')+' '+(PAY_LBL[t.payMethod]||'')+'</div>':'';
+  const pagarBtn=isAPagar?'<button style="background:var(--orange);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;margin-left:4px" onclick="markPaid(\''+t.id+'\')" >Pagar ✓</button>':'';
   const recvBtn=isPending&&!isProj?'<button style="background:var(--green);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;margin-left:4px" onclick="markReceived(\''+t.id+'\')" >Receber</button>':'';
   const projId=isProj?(t._recId?t._recId:t.id):'';
   const isInc=t.type==='inc';const projBtn=isProj?(isInc?'<button style="background:var(--green);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="confirmProj(\''+projId+'\',\''+( t.date||'')+'\',\'inc\')" >Receber ✓</button>':'<button style="background:var(--orange);color:#000;border:none;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="confirmProj(\''+projId+'\',\''+( t.date||'')+'\',\'exp\')" >Pagar ✓</button>'):''
@@ -1758,6 +1823,11 @@ function confirmProj(recId,date,type){
 }
 
 // Mark a pending income tx (already created but not yet received)
+function markPaid(txId){
+  const tx=txs.find(t=>t.id===txId);if(!tx)return;
+  tx.status='paid';
+  saveAll();render();toast('s','Despesa confirmada como paga!','');
+}
 function markReceived(txId){
   const tx=txs.find(t=>t.id===txId);if(!tx)return;
   tx.status='recebido';
