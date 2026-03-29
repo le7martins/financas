@@ -1075,6 +1075,7 @@ async function saveCloud(){
 async function saveAll(){
   showSync();
   await saveCloud();
+  saveBillsToIDB();
 }
 function showSync(){const b=document.getElementById('syncBar');b.classList.add('show');setTimeout(()=>b.classList.remove('show'),2500);}
 
@@ -1110,6 +1111,8 @@ function launchApp(user){
   render();
   checkNotifPerm();
   scheduleNotif();
+  saveBillsToIDB();
+  registerPeriodicSync();
 }
 
 // ══ PROFILE ══
@@ -1150,6 +1153,7 @@ function saveNotifTime(){
   toast('s','Horário salvo!','Notificação configurada para as '+t);
 }
 function scheduleNotif(){
+  // Fallback: setTimeout (works when browser is open)
   if(!('Notification'in window)||Notification.permission!=='granted') return;
   const saved=localStorage.getItem('cashup_notif_time')||'08:00';
   const[h,m]=saved.split(':').map(Number);
@@ -1159,10 +1163,67 @@ function scheduleNotif(){
   if(next<=now)next.setDate(next.getDate()+1);
   const ms=next-now;
   clearTimeout(window._notifTimer);
-  window._notifTimer=setTimeout(()=>{
-    fireNotif();
-    scheduleNotif(); // reschedule for next day
-  },ms);
+  window._notifTimer=setTimeout(()=>{fireNotif();scheduleNotif();},ms);
+}
+
+// ── IndexedDB: save vencimentos for SW to read ──
+function openBillsDB(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open('cashup_bills',1);
+    req.onupgradeneeded=e=>e.target.result.createObjectStore('bills',{keyPath:'id'});
+    req.onsuccess=e=>resolve(e.target.result);
+    req.onerror=reject;
+  });
+}
+async function saveBillsToIDB(){
+  try{
+    const today=new Date();
+    const todayDay=today.getDate();
+    const bills=[];
+    // Subscriptions due this month
+    for(const s of subs){
+      if(!(s.paidDates||[]).some(pd=>pd.startsWith(curKey()))){
+        bills.push({id:'sub_'+s.id,name:s.name,amount:s.amount,dueDay:s.dueDay,type:'sub'});
+      }
+    }
+    // Recurring expenses
+    for(const r of recs){
+      if(r.type!=='inc'&&r.dueDate&&!(r.totalInstallments>0&&(r.paidCount||0)>=r.totalInstallments)){
+        bills.push({id:'rec_'+r.id,name:r.desc,amount:r.amount,dueDate:r.dueDate,freq:r.freq,type:'rec'});
+      }
+    }
+    // Debts
+    for(const d of debts){
+      if(d.paidInstallments<d.totalInstallments){
+        bills.push({id:'debt_'+d.id,name:d.name,amount:d.monthlyPayment,dueDay:d.dueDay,type:'debt'});
+      }
+    }
+    const db=await openBillsDB();
+    const tx=db.transaction('bills','readwrite');
+    const store=tx.objectStore('bills');
+    await new Promise(r=>{store.clear().onsuccess=r;});
+    for(const b of bills) store.put(b);
+    console.log('[CashUp] Saved',bills.length,'bills to IDB for SW');
+  }catch(e){console.warn('[CashUp] IDB save error:',e);}
+}
+
+// ── Register Periodic Background Sync ──
+async function registerPeriodicSync(){
+  if(!('serviceWorker'in navigator)||!('periodicSync'in ServiceWorkerRegistration.prototype)){
+    console.log('[CashUp] Periodic Sync not supported');return;
+  }
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    const status=await navigator.permissions.query({name:'periodic-background-sync'});
+    if(status.state==='granted'){
+      await reg.periodicSync.register('cashup-check-bills',{
+        minInterval:12*60*60*1000 // at least every 12h
+      });
+      console.log('[CashUp] Periodic sync registered');
+    }else{
+      console.log('[CashUp] Periodic sync permission:',status.state);
+    }
+  }catch(e){console.warn('[CashUp] Periodic sync error:',e);}
 }
 function fireNotif(){
   const today=todayStr();
