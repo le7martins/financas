@@ -21,11 +21,13 @@
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import{getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import{getFirestore,doc,getDoc,setDoc}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import{getMessaging,getToken,onMessage}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
 const cfg={apiKey:"AIzaSyDjshxPgBFeegqzuo_NJp1VkCFoNfnypEI",authDomain:"minha-financas-app.firebaseapp.com",projectId:"minha-financas-app",storageBucket:"minha-financas-app.firebasestorage.app",messagingSenderId:"646680486862",appId:"1:646680486862:web:2f213c5a8363c6be5d819f"};
 const app=initializeApp(cfg);
 const auth=getAuth(app);
 const db=getFirestore(app);
-window._fb={auth,db,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,doc,getDoc,setDoc};
+const messaging=getMessaging(app);
+window._fb={auth,db,messaging,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,doc,getDoc,setDoc,getToken,onMessage};
 document.addEventListener('DOMContentLoaded',()=>{
   // Timeout: if Firebase doesn't respond in 10s, show error
   const fbTimeout=setTimeout(()=>{
@@ -506,6 +508,56 @@ input:checked+.slider:before{transform:translateX(16px)}
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 
 </style>
+<script>
+// ── Capacitor Push Notifications (native APK only) ──
+async function initCapacitorPush(){
+  if(!window.Capacitor||!window.Capacitor.isNativePlatform()){
+    console.log('[Push] Not native, skipping Capacitor push');
+    return;
+  }
+  try{
+    const{PushNotifications}=await import('https://unpkg.com/@capacitor/push-notifications/dist/esm/index.js').catch(()=>({PushNotifications:null}));
+    if(!PushNotifications){return;}
+
+    // Request permission
+    const perm=await PushNotifications.requestPermissions();
+    if(perm.receive!=='granted'){console.log('[Push] Permission denied');return;}
+
+    // Register with FCM
+    await PushNotifications.register();
+
+    // Get FCM token and save to Firestore
+    PushNotifications.addListener('registration',async token=>{
+      console.log('[Push] FCM token:',token.value.slice(0,20)+'...');
+      if(uid&&window._fb){
+        await window._fb.setDoc(window._fb.doc(window._fb.db,'fcm_tokens',uid),{
+          token:token.value,uid,updatedAt:new Date().toISOString()
+        });
+        localStorage.setItem('cashup_fcm_token',token.value);
+        console.log('[Push] Token saved to Firestore');
+      }
+    });
+
+    // Handle foreground notifications
+    PushNotifications.addListener('pushNotificationReceived',notification=>{
+      console.log('[Push] Foreground:',notification);
+      toast('i',notification.title||'Ca$h Up',notification.body||'');
+    });
+
+    // Handle tap on notification
+    PushNotifications.addListener('pushNotificationActionPerformed',action=>{
+      console.log('[Push] Tapped:',action);
+      goPage('dashboard');
+    });
+
+    PushNotifications.addListener('registrationError',err=>{
+      console.error('[Push] Registration error:',err);
+    });
+
+    console.log('[Push] Capacitor push initialized');
+  }catch(e){console.warn('[Push] Capacitor push error:',e);}
+}
+</script>
 </head>
 
 <body>
@@ -921,6 +973,7 @@ input:checked+.slider:before{transform:translateX(16px)}
           <div class="bk-desc">Ao abrir o Ca$h Up, você recebe uma notificação com os vencimentos do dia — uma vez por dia. Clique em "Testar" para verificar agora.</div>
 
           <button class="bk-btn green" onclick="testNotif()">🔔 Testar notificação agora</button>
+          <button class="bk-btn blue" onclick="setupFCM().then(()=>toast('s','Token FCM atualizado!',''))">🔄 Atualizar token FCM</button>
         </div>
         <div class="danger-zone">
         <div class="dz-title">🗑️ Zona de Perigo</div>
@@ -1102,6 +1155,9 @@ function launchApp(user){
   render();
   checkNotifPerm();
   scheduleNotif();
+  initCapacitorPush();
+  setupFCM();
+  initFCMListener();
 }
 
 // ══ PROFILE ══
@@ -1141,6 +1197,48 @@ function saveNotifTime(){
   scheduleNotif();
   toast('s','Horário salvo!','Notificação configurada para as '+t);
 }
+const VAPID_KEY='BLUurV1uOa1ZjBGXprUGAaU3wVym3LHUTLJ6HGr7888s2rqeuC7sSL16hbqloq2ObdlELduGT_alxPjtWTS4syw';
+
+// ── FCM: request permission + get token + save to Firestore ──
+async function setupFCM(){
+  if(!('Notification'in window)) return;
+  try{
+    const fb=window._fb;
+    const sw=await navigator.serviceWorker.ready;
+    const permission=await Notification.requestPermission();
+    if(permission!=='granted'){console.log('[FCM] Permission denied');return;}
+    const token=await fb.getToken(fb.messaging,{
+      vapidKey:VAPID_KEY,
+      serviceWorkerRegistration:sw
+    });
+    if(token&&uid){
+      // Save token to Firestore so Cloud Function can send push
+      await fb.setDoc(fb.doc(fb.db,'fcm_tokens',uid),{
+        token,
+        uid,
+        updatedAt:new Date().toISOString()
+      });
+      console.log('[FCM] Token saved:', token.slice(0,20)+'...');
+      localStorage.setItem('cashup_fcm_token', token);
+    }
+  }catch(e){console.warn('[FCM] Setup error:',e);}
+}
+
+// ── Foreground message handler ──
+function initFCMListener(){
+  try{
+    const fb=window._fb;
+    fb.onMessage(fb.messaging,(payload)=>{
+      console.log('[FCM] Foreground message:',payload);
+      const{title,body}=payload.notification||{};
+      if(title&&'Notification'in window&&Notification.permission==='granted'){
+        new Notification(title,{body,icon:'/financas/icon-192.png',tag:'cashup-fcm'});
+      }
+    });
+  }catch(e){console.warn('[FCM] Listener error:',e);}
+}
+
+// ── Local fallback: fire on app open (1x/day) ──
 function scheduleNotif(){
   if(!('Notification'in window)||Notification.permission!=='granted') return;
   const today=todayStr();
