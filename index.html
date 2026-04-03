@@ -1132,22 +1132,13 @@ function showSync(){const b=document.getElementById('syncBar');b.classList.add('
 function loginGoogle(){
   const fb=window._fb; const btn=document.getElementById('gLoginBtn');
   btn.disabled=true; btn.textContent='Entrando...';
-  const isNative=window.Capacitor&&window.Capacitor.isNativePlatform();
-  if(isNative){
-    // Native APK: use redirect
-    fb.signInWithRedirect(fb.auth,new fb.GoogleAuthProvider()).catch(e=>{
-      btn.disabled=false;
-      btn.innerHTML='<svg class="google-icon" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.6 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 2.9l5.7-5.7C34.5 6.5 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/></svg>Entrar com Google';
-      toast('e','Erro ao entrar','Tente novamente.');
-    });
-  } else {
-    // Web: use popup
-    fb.signInWithPopup(fb.auth,new fb.GoogleAuthProvider()).catch(e=>{
-      btn.disabled=false;
-      btn.innerHTML='<svg class="google-icon" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.6 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 2.9l5.7-5.7C34.5 6.5 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/></svg>Entrar com Google';
-      toast('e','Erro ao entrar','Tente novamente.');
-    });
-  }
+  const provider=new fb.GoogleAuthProvider();
+  provider.setCustomParameters({prompt:'select_account'});
+  fb.signInWithPopup(fb.auth,provider).catch(e=>{
+    btn.disabled=false;
+    btn.innerHTML='<svg class="google-icon" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.6 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 2.9l5.7-5.7C34.5 6.5 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/></svg>Entrar com Google';
+    toast('e','Erro ao entrar','Tente novamente.');
+  });
 }
 function doLogout(){showModal('Sair da conta?','Sera redirecionado para a tela de login.','<div style="display:flex;gap:8px"><button class="bk-btn red" style="flex:1;padding:11px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer" onclick="window._fb.signOut(window._fb.auth);closeModal()">Sair</button><button class="btn-main" style="flex:1" onclick="closeModal()">Cancelar</button></div>');}
 
